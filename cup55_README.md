@@ -20,6 +20,13 @@ full game history.
   on their phone, no accounts or passwords needed.
 - Player names autocomplete from everyone who's ever been logged, so
   typing "Ja" after a few games will suggest "Jake."
+- **Team Size Projector**: estimates what each person might average in a
+  different team size (2v2 through 5v5). It looks at how big a share of
+  their own team's cups a player typically makes, normalizes that by how
+  many teammates they had, and re-projects it onto a different team size
+  assuming a full 55-cup rack gets cleared. It's a rough estimate, not a
+  guarantee -- someone who's only played 2v2 might play differently once
+  there are more people on their side.
 
 ## Running it locally
 

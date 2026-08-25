@@ -90,7 +90,7 @@
     margin: 10px 0 4px;
   }
 
-  input[type="text"], input[type="number"], input[type="date"] {
+  input[type="text"], input[type="number"], input[type="date"], select {
     width: 100%;
     padding: 9px 10px;
     border: 1px solid var(--border);
@@ -380,6 +380,31 @@
     <div class="empty-note" id="history-empty" style="display:none;">No games logged yet.</div>
   </div>
 
+  <div class="card">
+    <h2>Team Size Projector</h2>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:0;">
+      Estimates what each person might average in a different team size,
+      based on how big a share of their own team's cups they typically make
+      compared to an even split, assuming the team clears the full 55-cup
+      rack. It's a rough projection, not a guarantee -- someone who's only
+      played 2v2 might play a little differently in a 4v4.
+    </p>
+    <label for="projector-size">Project onto</label>
+    <select id="projector-size" onchange="onProjectorSizeChange()">
+      <option value="2">2v2</option>
+      <option value="3">3v3</option>
+      <option value="4" selected>4v4</option>
+      <option value="5">5v5</option>
+    </select>
+    <table style="margin-top:12px;">
+      <thead>
+        <tr><th>Player</th><th>Projected avg cups</th><th>Games used</th></tr>
+      </thead>
+      <tbody id="projector-body"></tbody>
+    </table>
+    <div class="empty-note" id="projector-empty" style="display:none;">Not enough game data yet.</div>
+  </div>
+
 </main>
 
 <script>
@@ -389,6 +414,8 @@
 
   let teamRows = { a: [], b: [] }; // each entry: {name: '', cups: ''}
   let winnerValue = null; // 'A' | 'B' | null
+  let lastGames = [];
+  let projectorSize = 4;
 
   function myName() {
     return (localStorage.getItem('cup55_my_name') || '').trim();
@@ -618,31 +645,91 @@
   async function loadHistory() {
     const res = await fetch('/api/games');
     const data = await res.json();
+    lastGames = data.games || [];
     const list = document.getElementById('history-list');
     const empty = document.getElementById('history-empty');
-    if (!data.games || data.games.length === 0) {
+    if (lastGames.length === 0) {
       list.innerHTML = '';
+      empty.style.display = 'block';
+    } else {
+      empty.style.display = 'none';
+      const name = myName();
+      list.innerHTML = lastGames.map(g => `
+        <div class="history-item">
+          <div class="meta">
+            <span>${escapeHtml(g.session_label || fmtDate(g.game_date))}</span>
+            <span>${fmtDate(g.game_date)}</span>
+          </div>
+          <div class="history-teams">
+            ${teamHtml(g, 'A')}
+            ${teamHtml(g, 'B')}
+          </div>
+          ${g.logged_by && g.logged_by === name ? `
+            <div class="history-actions">
+              <button class="btn-small" onclick="deleteGame(${g.id})">Delete</button>
+            </div>` : ''}
+        </div>
+      `).join('');
+    }
+    renderProjector(projectorSize);
+  }
+
+  // For each game a player's in, work out what share of their own team's
+  // total cups they made that game, then normalize by team size so a
+  // player who got exactly an even split scores 1.0 regardless of
+  // whether it was 2v2 or 5v5. Averaging that "skill factor" across a
+  // player's games gives a team-size-independent measure, which can be
+  // re-projected onto any team size by dividing by the new size and
+  // assuming the team clears the full cup rack.
+  function computeProjections(targetSize) {
+    const byPlayer = {};
+    for (const g of lastGames) {
+      for (const roster of [g.team_a_players, g.team_b_players]) {
+        const teamTotal = roster.reduce((sum, p) => sum + p.cups_made, 0);
+        const teamSize = roster.length;
+        if (teamTotal <= 0 || teamSize <= 0) continue;
+        for (const p of roster) {
+          const share = p.cups_made / teamTotal;
+          const normalized = share * teamSize;
+          if (!byPlayer[p.player_name]) byPlayer[p.player_name] = { total: 0, count: 0 };
+          byPlayer[p.player_name].total += normalized;
+          byPlayer[p.player_name].count += 1;
+        }
+      }
+    }
+    const rows = Object.keys(byPlayer).map(name => {
+      const { total, count } = byPlayer[name];
+      const skillFactor = total / count;
+      const projected = (skillFactor / targetSize) * MAX_CUPS;
+      return { player_name: name, games_used: count, projected: Math.round(projected * 10) / 10 };
+    });
+    rows.sort((a, b) => b.projected - a.projected);
+    return rows;
+  }
+
+  function renderProjector(size) {
+    projectorSize = size;
+    const rows = computeProjections(size);
+    const body = document.getElementById('projector-body');
+    const empty = document.getElementById('projector-empty');
+    if (rows.length === 0) {
+      body.innerHTML = '';
       empty.style.display = 'block';
       return;
     }
     empty.style.display = 'none';
-    const name = myName();
-    list.innerHTML = data.games.map(g => `
-      <div class="history-item">
-        <div class="meta">
-          <span>${escapeHtml(g.session_label || fmtDate(g.game_date))}</span>
-          <span>${fmtDate(g.game_date)}</span>
-        </div>
-        <div class="history-teams">
-          ${teamHtml(g, 'A')}
-          ${teamHtml(g, 'B')}
-        </div>
-        ${g.logged_by && g.logged_by === name ? `
-          <div class="history-actions">
-            <button class="btn-small" onclick="deleteGame(${g.id})">Delete</button>
-          </div>` : ''}
-      </div>
+    body.innerHTML = rows.map(r => `
+      <tr>
+        <td>${escapeHtml(r.player_name)}</td>
+        <td>${r.projected}</td>
+        <td>${r.games_used}</td>
+      </tr>
     `).join('');
+  }
+
+  function onProjectorSizeChange() {
+    const size = Number(document.getElementById('projector-size').value);
+    renderProjector(size);
   }
 
   async function loadPlayers() {
