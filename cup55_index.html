@@ -2,393 +2,664 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Game of 55 Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lambda Chi Alpha -- Game of 55 Tracker</title>
 <style>
   :root {
-    --accent: #d1495b;
-    --accent-dark: #a83247;
-    --ink: #1f2430;
-    --muted: #6b7280;
-    --bg: #faf9f7;
-    --card: #ffffff;
-    --border: #e7e3dd;
-    --green: #2e8b57;
-    --red: #c0392b;
+    --purple: #5B2C82;
+    --purple-dark: #331A4D;
+    --purple-light: #7A4FA3;
+    --green: #3C8D40;
+    --green-dark: #2A6B2E;
+    --gold: #C9A227;
+    --gold-light: #E8D48A;
+    --bg: #F6F4FA;
+    --card: #FFFFFF;
+    --text: #2A1F38;
+    --text-muted: #6B6178;
+    --border: #E1D9EC;
+    --danger: #B3404A;
   }
+
   * { box-sizing: border-box; }
+
   body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background: var(--bg);
-    color: var(--ink);
+    color: var(--text);
+    padding-bottom: 40px;
   }
-  header {
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--border);
-    background: var(--card);
-  }
-  header h1 { margin: 0; font-size: 22px; }
-  header p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
 
-  main { max-width: 760px; margin: 0 auto; padding: 20px 16px 60px; }
+  header {
+    background: linear-gradient(135deg, var(--purple) 0%, var(--purple-dark) 100%);
+    color: #fff;
+    padding: 28px 20px 22px;
+    text-align: center;
+    border-bottom: 5px solid var(--gold);
+  }
+
+  header .crest {
+    font-size: 30px;
+    letter-spacing: 6px;
+    font-weight: 700;
+    color: var(--gold-light);
+    margin-bottom: 4px;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  header p {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #D9C8EC;
+  }
+
+  main {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 18px 14px 0;
+  }
 
   .card {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 18px;
-    margin-bottom: 20px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 3px rgba(51, 26, 77, 0.06);
   }
-  .card h2 { margin: 0 0 14px; font-size: 16px; }
 
-  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
-  input, select {
+  .card h2 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    color: var(--purple-dark);
+    border-bottom: 2px solid var(--gold-light);
+    padding-bottom: 8px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin: 10px 0 4px;
+  }
+
+  input[type="text"], input[type="number"], input[type="date"] {
     width: 100%;
-    padding: 10px;
+    padding: 9px 10px;
     border: 1px solid var(--border);
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 14px;
+    background: #FBFAFD;
+    color: var(--text);
+  }
+
+  input:focus {
+    outline: none;
+    border-color: var(--purple-light);
+    box-shadow: 0 0 0 3px rgba(91, 44, 130, 0.12);
+  }
+
+  .row-inline {
+    display: flex;
+    gap: 8px;
+  }
+
+  .row-inline > div { flex: 1; }
+
+  button {
+    cursor: pointer;
     font-family: inherit;
   }
-  .row { display: flex; gap: 10px; }
-  .row > div { flex: 1; }
 
-  .win-toggle { display: flex; gap: 8px; margin-top: 4px; }
-  .win-toggle button {
+  .btn-primary {
+    background: var(--purple);
+    color: #fff;
+    border: none;
+    padding: 11px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    width: 100%;
+    margin-top: 14px;
+  }
+
+  .btn-primary:hover { background: var(--purple-dark); }
+
+  .btn-secondary {
+    background: #fff;
+    color: var(--purple);
+    border: 1px solid var(--purple-light);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .btn-secondary:hover { background: #F2EBF8; }
+
+  .btn-small {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .btn-small:hover { border-color: var(--danger); color: var(--danger); }
+
+  .team-block {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 12px;
+    background: #FCFBFE;
+  }
+
+  .team-block.team-a { border-left: 4px solid var(--green); }
+  .team-block.team-b { border-left: 4px solid var(--gold); }
+
+  .team-block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .team-block-header input { flex: 1; }
+
+  .player-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 8px;
+  }
+
+  .player-row input[type="text"] { flex: 2; }
+  .player-row input[type="number"] { flex: 1; }
+
+  .add-player-btn {
+    margin-top: 10px;
+    width: 100%;
+  }
+
+  .winner-toggle {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .winner-toggle button {
     flex: 1;
     padding: 10px;
     border-radius: 8px;
     border: 1px solid var(--border);
     background: #fff;
-    font-size: 14px;
-    cursor: pointer;
-    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
   }
-  .win-toggle button.active-win { background: #e7f6ec; border-color: var(--green); color: var(--green); font-weight: 700; }
-  .win-toggle button.active-loss { background: #fbeaea; border-color: var(--red); color: var(--red); font-weight: 700; }
 
-  .submit-btn {
-    width: 100%;
-    margin-top: 16px;
-    padding: 12px;
-    border: none;
-    border-radius: 8px;
-    background: var(--accent);
+  .winner-toggle button.active-a {
+    background: var(--green);
     color: #fff;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
+    border-color: var(--green);
   }
-  .submit-btn:hover { background: var(--accent-dark); }
-  .submit-btn:disabled { opacity: 0.5; cursor: default; }
 
-  .status-msg { font-size: 13px; margin-top: 8px; }
-  .status-msg.err { color: var(--red); }
-  .status-msg.ok { color: var(--green); }
+  .winner-toggle button.active-b {
+    background: var(--gold);
+    color: #3B2A00;
+    border-color: var(--gold);
+  }
 
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .error-box {
+    background: #FBE8E9;
+    color: var(--danger);
+    border: 1px solid #EEBFC3;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    margin-top: 12px;
+    display: none;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
-  .rank { font-weight: 700; color: var(--accent); width: 24px; }
-  .avg-cups { font-weight: 700; }
+  th { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+  tr:first-child td { font-weight: 700; color: var(--purple-dark); }
 
   .history-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+
+  .history-item .meta {
+    font-size: 12px;
+    color: var(--text-muted);
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 14px;
+    margin-bottom: 8px;
   }
-  .history-item:last-child { border-bottom: none; }
-  .history-main { flex: 1; }
-  .history-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
-  .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; margin-left: 6px; }
-  .badge.win { background: #e7f6ec; color: var(--green); }
-  .badge.loss { background: #fbeaea; color: var(--red); }
-  .del-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; }
-  .del-btn:hover { color: var(--red); }
 
-  .session-header { font-weight: 700; margin: 16px 0 4px; font-size: 13px; color: var(--muted); text-transform: uppercase; }
-  .session-header:first-child { margin-top: 0; }
+  .history-teams {
+    display: flex;
+    gap: 10px;
+  }
 
-  .whoami { display: flex; gap: 8px; align-items: center; }
-  .whoami input { flex: 1; }
-  .whoami button { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: #fff; cursor: pointer; font-family: inherit; }
-  .empty-state { color: var(--muted); font-size: 14px; text-align: center; padding: 20px 0; }
+  .history-team {
+    flex: 1;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .history-team.side-a { background: rgba(60, 141, 64, 0.08); border: 1px solid rgba(60, 141, 64, 0.25); }
+  .history-team.side-b { background: rgba(201, 162, 39, 0.10); border: 1px solid rgba(201, 162, 39, 0.35); }
+
+  .history-team.winner { box-shadow: inset 0 0 0 2px currentColor; }
+
+  .history-team-name {
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .history-player { display: flex; justify-content: space-between; padding: 2px 0; }
+
+  .history-actions { margin-top: 8px; text-align: right; }
+
+  .empty-note { color: var(--text-muted); font-size: 13px; text-align: center; padding: 10px 0; }
+
+  .saved-name-pill {
+    display: inline-block;
+    background: var(--gold-light);
+    color: var(--purple-dark);
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>🏆 Game of 55 Tracker</h1>
-  <p>Log your cups after every game -- averages update automatically.</p>
+  <div class="crest">&Lambda; &Chi; &Alpha;</div>
+  <h1>Game of 55 Tracker</h1>
+  <p>Lambda Chi Alpha -- log a game, track the leaderboard</p>
 </header>
 
 <main>
 
   <div class="card">
-    <h2>Who are you?</h2>
-    <div class="whoami">
-      <input type="text" id="my-name" placeholder="Your name" list="player-list">
-      <datalist id="player-list"></datalist>
-      <button onclick="saveMyName()">Save</button>
-    </div>
-    <div class="status-msg" id="whoami-status"></div>
+    <h2>Who's logging this?</h2>
+    <label for="my-name">Your name</label>
+    <input type="text" id="my-name" list="player-list" placeholder="e.g. Jake M.">
+    <button class="btn-secondary" style="margin-top:10px;" onclick="saveMyName()">Save name</button>
+    <div id="saved-name-display" style="margin-top:10px;"></div>
+    <datalist id="player-list"></datalist>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:10px;">
+      Whoever's phone logs a game is remembered so only they can delete it later
+      (e.g. to fix a typo).
+    </p>
   </div>
 
   <div class="card">
     <h2>Log a game</h2>
-    <label for="cups-made">Cups you made (out of <span id="max-cups-label">55</span>)</label>
-    <input type="number" id="cups-made" min="0" max="55" placeholder="e.g. 32">
 
-    <div class="row">
-      <div>
-        <label for="opponent-name">Opponent (optional)</label>
-        <input type="text" id="opponent-name" placeholder="Who'd you play?">
-      </div>
+    <div class="row-inline">
       <div>
         <label for="game-date">Date</label>
         <input type="date" id="game-date">
       </div>
+      <div>
+        <label for="session-label">Session (optional)</label>
+        <input type="text" id="session-label" placeholder="e.g. Friday night">
+      </div>
     </div>
 
-    <label for="session-label">Session name (optional)</label>
-    <input type="text" id="session-label" placeholder="e.g. Friday night at Jake's">
-
-    <label>Result</label>
-    <div class="win-toggle">
-      <button type="button" id="win-btn" onclick="setWon(true)">Won</button>
-      <button type="button" id="loss-btn" onclick="setWon(false)">Lost</button>
-      <button type="button" id="unknown-btn" onclick="setWon(null)">Not sure</button>
+    <div class="team-block team-a" id="team-a-block">
+      <div class="team-block-header">
+        <div>
+          <label style="margin-top:0;">Team A name</label>
+          <input type="text" id="team-a-name" placeholder="Team A">
+        </div>
+      </div>
+      <div id="team-a-rows"></div>
+      <button class="btn-secondary add-player-btn" onclick="addPlayerRow('a')">+ Add player to Team A</button>
     </div>
 
-    <button class="submit-btn" id="submit-btn" onclick="submitGame()">Log game</button>
-    <div class="status-msg" id="submit-status"></div>
+    <div class="team-block team-b" id="team-b-block">
+      <div class="team-block-header">
+        <div>
+          <label style="margin-top:0;">Team B name</label>
+          <input type="text" id="team-b-name" placeholder="Team B">
+        </div>
+      </div>
+      <div id="team-b-rows"></div>
+      <button class="btn-secondary add-player-btn" onclick="addPlayerRow('b')">+ Add player to Team B</button>
+    </div>
+
+    <label>Who won?</label>
+    <div class="winner-toggle">
+      <button id="winner-btn-a" onclick="setWinner('A')">Team A</button>
+      <button id="winner-btn-b" onclick="setWinner('B')">Team B</button>
+      <button id="winner-btn-none" onclick="setWinner(null)">Not sure</button>
+    </div>
+
+    <div class="error-box" id="error-box"></div>
+
+    <button class="btn-primary" onclick="submitGame()">Log game</button>
   </div>
 
   <div class="card">
-    <h2>Leaderboard <span style="font-weight:400; color:var(--muted); font-size:12px;">(by average cups made)</span></h2>
-    <table id="leaderboard-table">
+    <h2>Leaderboard</h2>
+    <table>
       <thead>
-        <tr><th></th><th>Player</th><th>Games</th><th>Avg cups</th><th>Win %</th></tr>
+        <tr><th>Player</th><th>Avg cups</th><th>Games</th><th>Win %</th></tr>
       </thead>
       <tbody id="leaderboard-body"></tbody>
     </table>
-    <div class="empty-state" id="leaderboard-empty" style="display:none;">No games logged yet -- be the first!</div>
+    <div class="empty-note" id="leaderboard-empty" style="display:none;">No games logged yet.</div>
   </div>
 
   <div class="card">
     <h2>History</h2>
     <div id="history-list"></div>
-    <div class="empty-state" id="history-empty" style="display:none;">Nothing logged yet.</div>
+    <div class="empty-note" id="history-empty" style="display:none;">No games logged yet.</div>
   </div>
 
 </main>
 
 <script>
-let wonValue = null; // true / false / null
+  const MIN_TEAM_SIZE = 2;
+  const MAX_TEAM_SIZE = 5;
+  let MAX_CUPS = 55;
 
-function saveMyName() {
-  const name = document.getElementById('my-name').value.trim();
-  const statusEl = document.getElementById('whoami-status');
-  if (!name) {
-    statusEl.textContent = 'Enter a name first.';
-    statusEl.className = 'status-msg err';
-    return;
-  }
-  localStorage.setItem('cup55_my_name', name);
-  statusEl.textContent = `Saved -- you're logging games as "${name}".`;
-  statusEl.className = 'status-msg ok';
-  loadHistory(); // refresh delete-button visibility
-}
+  let teamRows = { a: [], b: [] }; // each entry: {name: '', cups: ''}
+  let winnerValue = null; // 'A' | 'B' | null
 
-function myName() {
-  return localStorage.getItem('cup55_my_name') || '';
-}
-
-function setWon(val) {
-  wonValue = val;
-  document.getElementById('win-btn').className = val === true ? 'active-win' : '';
-  document.getElementById('loss-btn').className = val === false ? 'active-loss' : '';
-  document.getElementById('unknown-btn').className = '';
-}
-
-async function submitGame() {
-  const statusEl = document.getElementById('submit-status');
-  const submitBtn = document.getElementById('submit-btn');
-  const name = myName();
-
-  if (!name) {
-    statusEl.textContent = 'Save your name above first.';
-    statusEl.className = 'status-msg err';
-    return;
+  function myName() {
+    return (localStorage.getItem('cup55_my_name') || '').trim();
   }
 
-  const cupsMade = document.getElementById('cups-made').value;
-  if (cupsMade === '') {
-    statusEl.textContent = 'Enter how many cups you made.';
-    statusEl.className = 'status-msg err';
-    return;
+  function saveMyName() {
+    const val = document.getElementById('my-name').value.trim();
+    if (!val) return;
+    localStorage.setItem('cup55_my_name', val);
+    showSavedName();
   }
 
-  const payload = {
-    player_name: name,
-    cups_made: parseInt(cupsMade, 10),
-    opponent_name: document.getElementById('opponent-name').value,
-    game_date: document.getElementById('game-date').value,
-    session_label: document.getElementById('session-label').value,
-    won: wonValue,
-  };
+  function showSavedName() {
+    const name = myName();
+    const el = document.getElementById('saved-name-display');
+    el.innerHTML = name
+      ? `Logging as <span class="saved-name-pill">${escapeHtml(name)}</span>`
+      : '';
+  }
 
-  submitBtn.disabled = true;
-  statusEl.textContent = 'Saving...';
-  statusEl.className = 'status-msg';
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
 
-  try {
-    const resp = await fetch('/api/games', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+  function fmtDate(iso) {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return `${m}/${d}/${y}`;
+  }
+
+  function initTeamRows() {
+    teamRows.a = [{ name: '', cups: '' }, { name: '', cups: '' }];
+    teamRows.b = [{ name: '', cups: '' }, { name: '', cups: '' }];
+    renderTeamRows('a');
+    renderTeamRows('b');
+  }
+
+  function addPlayerRow(team) {
+    if (teamRows[team].length >= MAX_TEAM_SIZE) return;
+    teamRows[team].push({ name: '', cups: '' });
+    renderTeamRows(team);
+  }
+
+  function removePlayerRow(team, index) {
+    if (teamRows[team].length <= MIN_TEAM_SIZE) return;
+    captureTeamRows(team);
+    teamRows[team].splice(index, 1);
+    renderTeamRows(team);
+  }
+
+  function captureTeamRows(team) {
+    const container = document.getElementById(`team-${team}-rows`);
+    const rows = container.querySelectorAll('.player-row');
+    rows.forEach((row, i) => {
+      const nameInput = row.querySelector('.player-name-input');
+      const cupsInput = row.querySelector('.player-cups-input');
+      if (teamRows[team][i]) {
+        teamRows[team][i].name = nameInput.value;
+        teamRows[team][i].cups = cupsInput.value;
+      }
     });
-    const data = await resp.json();
-    submitBtn.disabled = false;
-    if (!resp.ok) {
-      statusEl.textContent = data.error || 'Something went wrong.';
-      statusEl.className = 'status-msg err';
+  }
+
+  function renderTeamRows(team) {
+    const container = document.getElementById(`team-${team}-rows`);
+    container.innerHTML = teamRows[team].map((p, i) => `
+      <div class="player-row">
+        <input type="text" class="player-name-input" list="player-list"
+               placeholder="Player name" value="${escapeHtml(p.name)}"
+               onchange="captureTeamRows('${team}')">
+        <input type="number" class="player-cups-input" min="0" max="${MAX_CUPS}"
+               placeholder="Cups" value="${escapeHtml(p.cups)}"
+               onchange="captureTeamRows('${team}')">
+        ${teamRows[team].length > MIN_TEAM_SIZE
+          ? `<button type="button" class="btn-small" onclick="removePlayerRow('${team}', ${i})">Remove</button>`
+          : ''}
+      </div>
+    `).join('');
+  }
+
+  function setWinner(val) {
+    winnerValue = val;
+    document.getElementById('winner-btn-a').classList.toggle('active-a', val === 'A');
+    document.getElementById('winner-btn-b').classList.toggle('active-b', val === 'B');
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('error-box');
+    box.textContent = msg;
+    box.style.display = 'block';
+  }
+
+  function hideError() {
+    document.getElementById('error-box').style.display = 'none';
+  }
+
+  async function submitGame() {
+    hideError();
+    captureTeamRows('a');
+    captureTeamRows('b');
+
+    const logged_by = myName() || document.getElementById('my-name').value.trim();
+    if (!logged_by) {
+      showError("Enter and save your name first, up at the top.");
       return;
     }
-    statusEl.textContent = 'Logged!';
-    statusEl.className = 'status-msg ok';
-    document.getElementById('cups-made').value = '';
-    document.getElementById('opponent-name').value = '';
-    document.getElementById('session-label').value = '';
-    setWon(null);
-    loadLeaderboard();
-    loadHistory();
-    loadPlayers();
-  } catch (e) {
-    submitBtn.disabled = false;
-    statusEl.textContent = 'Request failed: ' + e.message;
-    statusEl.className = 'status-msg err';
-  }
-}
-
-async function loadLeaderboard() {
-  const resp = await fetch('/api/stats');
-  const data = await resp.json();
-  document.getElementById('max-cups-label').textContent = data.max_cups;
-
-  const body = document.getElementById('leaderboard-body');
-  const empty = document.getElementById('leaderboard-empty');
-  body.innerHTML = '';
-
-  if (!data.leaderboard.length) {
-    empty.style.display = 'block';
-    return;
-  }
-  empty.style.display = 'none';
-
-  data.leaderboard.forEach((p, i) => {
-    const tr = document.createElement('tr');
-    const winPct = p.win_rate === null ? '&mdash;' : p.win_rate + '%';
-    tr.innerHTML = `
-      <td class="rank">${i + 1}</td>
-      <td>${p.player_name}</td>
-      <td>${p.games_played}</td>
-      <td class="avg-cups">${p.avg_cups}</td>
-      <td>${winPct}</td>
-    `;
-    body.appendChild(tr);
-  });
-}
-
-function fmtDate(iso) {
-  try {
-    const d = new Date(iso + 'T00:00:00');
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch (e) { return iso; }
-}
-
-async function loadHistory() {
-  const resp = await fetch('/api/games');
-  const data = await resp.json();
-  const list = document.getElementById('history-list');
-  const empty = document.getElementById('history-empty');
-  list.innerHTML = '';
-
-  if (!data.entries.length) {
-    empty.style.display = 'block';
-    return;
-  }
-  empty.style.display = 'none';
-
-  const me = myName();
-  let lastGroup = null;
-
-  data.entries.forEach(e => {
-    const groupKey = e.session_label ? e.session_label : fmtDate(e.game_date);
-    if (groupKey !== lastGroup) {
-      const h = document.createElement('div');
-      h.className = 'session-header';
-      h.textContent = e.session_label ? `${e.session_label} -- ${fmtDate(e.game_date)}` : fmtDate(e.game_date);
-      list.appendChild(h);
-      lastGroup = groupKey;
+    if (!myName()) {
+      localStorage.setItem('cup55_my_name', logged_by);
+      showSavedName();
     }
 
-    const item = document.createElement('div');
-    item.className = 'history-item';
-    const badge = e.won === 1 ? '<span class="badge win">WIN</span>'
-      : e.won === 0 ? '<span class="badge loss">LOSS</span>' : '';
-    const opp = e.opponent_name ? ` vs ${e.opponent_name}` : '';
-    const delBtn = (e.player_name === me)
-      ? `<button class="del-btn" onclick="deleteEntry(${e.id})">Delete</button>` : '';
+    const buildRoster = (rows) => rows.map(p => ({
+      player_name: p.name.trim(),
+      cups_made: p.cups === '' ? NaN : Number(p.cups),
+    }));
 
-    item.innerHTML = `
-      <div class="history-main">
-        <strong>${e.player_name}</strong> made <strong>${e.cups_made}</strong> cups${opp}${badge}
-        <div class="history-meta">${fmtDate(e.game_date)}</div>
-      </div>
-      ${delBtn}
-    `;
-    list.appendChild(item);
-  });
-}
+    const teamAPlayers = buildRoster(teamRows.a);
+    const teamBPlayers = buildRoster(teamRows.b);
 
-async function deleteEntry(id) {
-  const me = myName();
-  if (!me) return;
-  if (!confirm('Delete this entry?')) return;
-  const resp = await fetch('/api/games/' + id, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ player_name: me }),
-  });
-  if (resp.ok) {
-    loadLeaderboard();
-    loadHistory();
+    for (const p of [...teamAPlayers, ...teamBPlayers]) {
+      if (!p.player_name) { showError("Every player needs a name."); return; }
+      if (Number.isNaN(p.cups_made) || p.cups_made < 0 || p.cups_made > MAX_CUPS) {
+        showError(`${p.player_name}'s cups made needs to be a number between 0 and ${MAX_CUPS}.`);
+        return;
+      }
+    }
+
+    const payload = {
+      logged_by,
+      game_date: document.getElementById('game-date').value,
+      session_label: document.getElementById('session-label').value,
+      team_a_name: document.getElementById('team-a-name').value,
+      team_b_name: document.getElementById('team-b-name').value,
+      winner: winnerValue,
+      team_a_players: teamAPlayers,
+      team_b_players: teamBPlayers,
+    };
+
+    try {
+      const res = await fetch('/api/games', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showError(data.error || "Couldn't log that game.");
+        return;
+      }
+      resetForm();
+      loadLeaderboard();
+      loadHistory();
+      loadPlayers();
+    } catch (e) {
+      showError("Couldn't reach the server. Check your connection and try again.");
+    }
   }
-}
 
-async function loadPlayers() {
-  const resp = await fetch('/api/players');
-  const data = await resp.json();
-  const dl = document.getElementById('player-list');
-  dl.innerHTML = data.players.map(p => `<option value="${p}">`).join('');
-}
+  function resetForm() {
+    document.getElementById('session-label').value = '';
+    document.getElementById('team-a-name').value = '';
+    document.getElementById('team-b-name').value = '';
+    setWinner(null);
+    initTeamRows();
+  }
 
-// Init
-document.getElementById('game-date').value = new Date().toISOString().slice(0, 10);
-const savedName = myName();
-if (savedName) {
-  document.getElementById('my-name').value = savedName;
-  document.getElementById('whoami-status').textContent = `Logging games as "${savedName}".`;
-  document.getElementById('whoami-status').className = 'status-msg ok';
-}
-loadLeaderboard();
-loadHistory();
-loadPlayers();
+  async function deleteGame(id) {
+    const logged_by = myName();
+    if (!logged_by) return;
+    if (!confirm('Delete this game?')) return;
+    const res = await fetch(`/api/games/${id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ logged_by }),
+    });
+    if (res.ok) {
+      loadHistory();
+      loadLeaderboard();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Couldn't delete that game.");
+    }
+  }
+
+  async function loadLeaderboard() {
+    const res = await fetch('/api/stats');
+    const data = await res.json();
+    MAX_CUPS = data.max_cups || 55;
+    const body = document.getElementById('leaderboard-body');
+    const empty = document.getElementById('leaderboard-empty');
+    if (!data.leaderboard || data.leaderboard.length === 0) {
+      body.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    body.innerHTML = data.leaderboard.map(p => `
+      <tr>
+        <td>${escapeHtml(p.player_name)}</td>
+        <td>${p.avg_cups}</td>
+        <td>${p.games_played}</td>
+        <td>${p.win_rate === null ? '--' : p.win_rate + '%'}</td>
+      </tr>
+    `).join('');
+  }
+
+  function teamHtml(game, side) {
+    const players = side === 'A' ? game.team_a_players : game.team_b_players;
+    const name = side === 'A' ? (game.team_a_name || 'Team A') : (game.team_b_name || 'Team B');
+    const isWinner = game.winner === side;
+    const sideClass = side === 'A' ? 'side-a' : 'side-b';
+    return `
+      <div class="history-team ${sideClass} ${isWinner ? 'winner' : ''}" style="color:${side === 'A' ? 'var(--green-dark)' : '#8A6B00'}">
+        <div class="history-team-name">${escapeHtml(name)} ${isWinner ? '&#127942;' : ''}</div>
+        ${players.map(p => `
+          <div class="history-player">
+            <span>${escapeHtml(p.player_name)}</span>
+            <span>${p.cups_made} cups</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  async function loadHistory() {
+    const res = await fetch('/api/games');
+    const data = await res.json();
+    const list = document.getElementById('history-list');
+    const empty = document.getElementById('history-empty');
+    if (!data.games || data.games.length === 0) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    const name = myName();
+    list.innerHTML = data.games.map(g => `
+      <div class="history-item">
+        <div class="meta">
+          <span>${escapeHtml(g.session_label || fmtDate(g.game_date))}</span>
+          <span>${fmtDate(g.game_date)}</span>
+        </div>
+        <div class="history-teams">
+          ${teamHtml(g, 'A')}
+          ${teamHtml(g, 'B')}
+        </div>
+        ${g.logged_by && g.logged_by === name ? `
+          <div class="history-actions">
+            <button class="btn-small" onclick="deleteGame(${g.id})">Delete</button>
+          </div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  async function loadPlayers() {
+    const res = await fetch('/api/players');
+    const data = await res.json();
+    const datalist = document.getElementById('player-list');
+    datalist.innerHTML = (data.players || []).map(p => `<option value="${escapeHtml(p)}">`).join('');
+  }
+
+  // init
+  document.getElementById('game-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('my-name').value = myName();
+  showSavedName();
+  initTeamRows();
+  loadLeaderboard();
+  loadHistory();
+  loadPlayers();
 </script>
 
 </body>

@@ -1,12 +1,12 @@
 """
-Cup Tracker -- Flask app for tracking average cups made per person across
-games of 55 (cup pong with 55 cups per side).
+Cup Tracker -- Lambda Chi Alpha edition. Flask app for tracking average
+cups made per person across games of 55 (cup pong with 55 cups per side).
 
-Each player logs their own result from their own phone right after a game
--- their name, how many cups they made, who/what they played against, and
-whether they won -- and the app aggregates everyone's entries into a
+One brother logs an entire game at once, right after it happens: both
+teams' full rosters (2 to 5 players per side), each player's cups made,
+and which team won. The app aggregates every logged game into a
 leaderboard (average cups made per game, win rate, total games) plus a
-full history you can filter by session.
+full history of every game.
 
 Run locally with:  python cup55_app.py
 Then open:          http://127.0.0.1:5001
@@ -16,7 +16,6 @@ automatically by the host and the app binds to 0.0.0.0 so it's reachable
 from outside (e.g. from everyone's phones), not just from one computer.
 """
 import os
-import time
 from datetime import date
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -26,6 +25,8 @@ import cup55_db as db
 app = Flask(__name__, static_folder=None)
 
 MAX_CUPS = 55
+MIN_TEAM_SIZE = 2
+MAX_TEAM_SIZE = 5
 
 
 @app.route("/")
@@ -33,68 +34,86 @@ def index():
     return send_from_directory(".", "cup55_index.html")
 
 
-def _validate_entry(data):
-    player_name = str(data.get("player_name", "")).strip()
-    if not player_name:
-        return None, "Enter your name."
+def _validate_roster(raw_players, label):
+    if not isinstance(raw_players, list):
+        return None, f"{label} roster is missing."
+    if not (MIN_TEAM_SIZE <= len(raw_players) <= MAX_TEAM_SIZE):
+        return None, f"{label} needs between {MIN_TEAM_SIZE} and {MAX_TEAM_SIZE} players."
 
-    try:
-        cups_made = int(data.get("cups_made"))
-    except (TypeError, ValueError):
-        return None, "Cups made needs to be a number."
-    if cups_made < 0 or cups_made > MAX_CUPS:
-        return None, f"Cups made has to be between 0 and {MAX_CUPS}."
+    players = []
+    for p in raw_players:
+        name = str((p or {}).get("player_name", "")).strip()
+        if not name:
+            return None, f"Every player on {label} needs a name."
+        try:
+            cups = int((p or {}).get("cups_made"))
+        except (TypeError, ValueError):
+            return None, f"{name}'s cups made needs to be a number."
+        if cups < 0 or cups > MAX_CUPS:
+            return None, f"{name}'s cups made has to be between 0 and {MAX_CUPS}."
+        players.append((name, cups))
+    return players, None
+
+
+def _validate_game(data):
+    logged_by = str(data.get("logged_by", "")).strip()
+    if not logged_by:
+        return None, "Enter your name (whoever's logging this game)."
 
     game_date = str(data.get("game_date") or "").strip() or date.today().isoformat()
 
-    won_raw = data.get("won")
-    if won_raw in (True, "true", "1", 1):
-        won = 1
-    elif won_raw in (False, "false", "0", 0):
-        won = 0
-    else:
-        won = None  # not recorded / unknown
+    team_a_players, error = _validate_roster(data.get("team_a_players"), "Team A")
+    if error:
+        return None, error
+    team_b_players, error = _validate_roster(data.get("team_b_players"), "Team B")
+    if error:
+        return None, error
 
-    entry = {
-        "player_name": player_name,
-        "cups_made": cups_made,
-        "opponent_name": data.get("opponent_name"),
-        "team_name": data.get("team_name"),
-        "won": won,
+    winner = data.get("winner")
+    if winner not in ("A", "B"):
+        winner = None
+
+    game = {
         "game_date": game_date,
         "session_label": data.get("session_label"),
+        "team_a_name": (data.get("team_a_name") or "").strip() or "Team A",
+        "team_b_name": (data.get("team_b_name") or "").strip() or "Team B",
+        "winner": winner,
+        "logged_by": logged_by,
+        "team_a_players": team_a_players,
+        "team_b_players": team_b_players,
     }
-    return entry, None
+    return game, None
 
 
 @app.route("/api/games", methods=["GET"])
 def api_list_games():
-    return jsonify({"entries": db.all_entries()})
+    return jsonify({"games": db.all_games()})
 
 
 @app.route("/api/games", methods=["POST"])
 def api_add_game():
     data = request.get_json(silent=True) or {}
-    entry, error = _validate_entry(data)
+    game, error = _validate_game(data)
     if error:
         return jsonify({"error": error}), 400
 
-    entry_id = db.add_entry(
-        entry["player_name"], entry["cups_made"], entry["opponent_name"],
-        entry["team_name"], entry["won"], entry["game_date"], entry["session_label"],
+    game_id = db.add_game(
+        game["game_date"], game["session_label"], game["team_a_name"], game["team_b_name"],
+        game["winner"], game["logged_by"], game["team_a_players"], game["team_b_players"],
     )
-    return jsonify({"ok": True, "id": entry_id})
+    return jsonify({"ok": True, "id": game_id})
 
 
-@app.route("/api/games/<int:entry_id>", methods=["DELETE"])
-def api_delete_game(entry_id):
+@app.route("/api/games/<int:game_id>", methods=["DELETE"])
+def api_delete_game(game_id):
     data = request.get_json(silent=True) or {}
-    player_name = str(data.get("player_name", "")).strip()
-    if not player_name:
-        return jsonify({"error": "Missing player_name."}), 400
-    deleted = db.delete_entry(entry_id, player_name)
+    logged_by = str(data.get("logged_by", "")).strip()
+    if not logged_by:
+        return jsonify({"error": "Missing logged_by."}), 400
+    deleted = db.delete_game(game_id, logged_by)
     if not deleted:
-        return jsonify({"error": "Entry not found, or it isn't yours to delete."}), 404
+        return jsonify({"error": "Game not found, or it isn't yours to delete."}), 404
     return jsonify({"ok": True})
 
 
@@ -105,41 +124,48 @@ def api_players():
 
 @app.route("/api/stats")
 def api_stats():
-    entries = db.all_entries()
+    games = db.all_games()
     by_player = {}
-    for e in entries:
-        name = e["player_name"]
-        stats = by_player.setdefault(name, {
-            "player_name": name,
-            "games_played": 0,
-            "total_cups": 0,
-            "wins": 0,
-            "losses": 0,
-            "unrecorded_results": 0,
-        })
-        stats["games_played"] += 1
-        stats["total_cups"] += e["cups_made"]
-        if e["won"] == 1:
-            stats["wins"] += 1
-        elif e["won"] == 0:
-            stats["losses"] += 1
-        else:
-            stats["unrecorded_results"] += 1
+    for g in games:
+        for team, roster in (("A", g["team_a_players"]), ("B", g["team_b_players"])):
+            if g["winner"] is None:
+                won = None
+            else:
+                won = (g["winner"] == team)
+            for p in roster:
+                name = p["player_name"]
+                stats = by_player.setdefault(name, {
+                    "player_name": name,
+                    "games_played": 0,
+                    "total_cups": 0,
+                    "wins": 0,
+                    "losses": 0,
+                    "unrecorded_results": 0,
+                })
+                stats["games_played"] += 1
+                stats["total_cups"] += p["cups_made"]
+                if won is True:
+                    stats["wins"] += 1
+                elif won is False:
+                    stats["losses"] += 1
+                else:
+                    stats["unrecorded_results"] += 1
 
     leaderboard = []
     for stats in by_player.values():
-        games = stats["games_played"]
-        avg_cups = round(stats["total_cups"] / games, 2) if games else 0
-        decided_games = stats["wins"] + stats["losses"]
-        win_rate = round(stats["wins"] / decided_games * 100, 1) if decided_games else None
-        leaderboard.append({
-            **stats,
-            "avg_cups": avg_cups,
-            "win_rate": win_rate,
-        })
+        games_played = stats["games_played"]
+        avg_cups = round(stats["total_cups"] / games_played, 2) if games_played else 0
+        decided = stats["wins"] + stats["losses"]
+        win_rate = round(stats["wins"] / decided * 100, 1) if decided else None
+        leaderboard.append({**stats, "avg_cups": avg_cups, "win_rate": win_rate})
 
     leaderboard.sort(key=lambda s: (-s["avg_cups"], -s["games_played"]))
-    return jsonify({"leaderboard": leaderboard, "max_cups": MAX_CUPS})
+    return jsonify({
+        "leaderboard": leaderboard,
+        "max_cups": MAX_CUPS,
+        "min_team_size": MIN_TEAM_SIZE,
+        "max_team_size": MAX_TEAM_SIZE,
+    })
 
 
 if __name__ == "__main__":
