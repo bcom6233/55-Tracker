@@ -50,9 +50,19 @@ def init_db():
                 game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
                 team TEXT NOT NULL,
                 player_name TEXT NOT NULL,
-                cups_made INTEGER NOT NULL
+                cups_made INTEGER NOT NULL,
+                bitch_cups_made INTEGER NOT NULL DEFAULT 0,
+                bitch_cups_taken INTEGER NOT NULL DEFAULT 0,
+                drinks_taken INTEGER NOT NULL DEFAULT 0,
+                fire_count INTEGER NOT NULL DEFAULT 0
             )
         """)
+        # Migrate any game_players table created before these columns
+        # existed (SQLite has no "ADD COLUMN IF NOT EXISTS", so check first).
+        existing_cols = {row["name"] for row in conn.execute("PRAGMA table_info(game_players)")}
+        for col in ("bitch_cups_made", "bitch_cups_taken", "drinks_taken", "fire_count"):
+            if col not in existing_cols:
+                conn.execute(f"ALTER TABLE game_players ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0")
         conn.commit()
     finally:
         conn.close()
@@ -60,7 +70,8 @@ def init_db():
 
 def add_game(game_date, session_label, team_a_name, team_b_name, winner, logged_by,
              team_a_players, team_b_players):
-    """team_a_players / team_b_players: list of (player_name, cups_made) tuples."""
+    """team_a_players / team_b_players: list of
+    (player_name, cups_made, bitch_cups_made, bitch_cups_taken, drinks_taken, fire_count) tuples."""
     conn = _connect()
     try:
         cur = conn.execute(
@@ -73,10 +84,12 @@ def add_game(game_date, session_label, team_a_name, team_b_name, winner, logged_
         )
         game_id = cur.lastrowid
         for team, players in (("A", team_a_players), ("B", team_b_players)):
-            for name, cups in players:
+            for name, cups, bitch_made, bitch_taken, drinks, fire in players:
                 conn.execute(
-                    "INSERT INTO game_players (game_id, team, player_name, cups_made) VALUES (?, ?, ?, ?)",
-                    (game_id, team, name.strip(), cups),
+                    """INSERT INTO game_players
+                       (game_id, team, player_name, cups_made, bitch_cups_made, bitch_cups_taken, drinks_taken, fire_count)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (game_id, team, name.strip(), cups, bitch_made, bitch_taken, drinks, fire),
                 )
         conn.commit()
         return game_id

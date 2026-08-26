@@ -175,15 +175,46 @@
 
   .team-block-header input { flex: 1; }
 
-  .player-row {
+  .player-row-block {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    margin-top: 8px;
+    background: #fff;
+  }
+
+  .player-row-top {
     display: flex;
     gap: 6px;
     align-items: center;
-    margin-top: 8px;
   }
 
-  .player-row input[type="text"] { flex: 2; }
-  .player-row input[type="number"] { flex: 1; }
+  .player-row-top input[type="text"] { flex: 1; }
+
+  .player-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  @media (min-width: 480px) {
+    .player-stat-grid { grid-template-columns: repeat(5, 1fr); }
+  }
+
+  .player-stat-grid div { display: flex; flex-direction: column; }
+
+  .player-stat-grid label {
+    font-size: 10px;
+    margin: 0 0 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .player-stat-grid input[type="number"] {
+    padding: 6px 6px;
+    font-size: 13px;
+  }
 
   .add-player-btn {
     margin-top: 10px;
@@ -375,6 +406,17 @@
   </div>
 
   <div class="card">
+    <h2>Fun Stats</h2>
+    <table>
+      <thead>
+        <tr><th>Player</th><th>Bitch cups/game</th><th>Drinks/game</th><th>Fires (total)</th></tr>
+      </thead>
+      <tbody id="funstats-body"></tbody>
+    </table>
+    <div class="empty-note" id="funstats-empty" style="display:none;">No games logged yet.</div>
+  </div>
+
+  <div class="card">
     <h2>History</h2>
     <div id="history-list"></div>
     <div class="empty-note" id="history-empty" style="display:none;">No games logged yet.</div>
@@ -448,16 +490,20 @@
     return `${m}/${d}/${y}`;
   }
 
+  function blankPlayer() {
+    return { name: '', cups: '', bmade: '', btaken: '', drinks: '', fire: '' };
+  }
+
   function initTeamRows() {
-    teamRows.a = [{ name: '', cups: '' }, { name: '', cups: '' }];
-    teamRows.b = [{ name: '', cups: '' }, { name: '', cups: '' }];
+    teamRows.a = [blankPlayer(), blankPlayer()];
+    teamRows.b = [blankPlayer(), blankPlayer()];
     renderTeamRows('a');
     renderTeamRows('b');
   }
 
   function addPlayerRow(team) {
     if (teamRows[team].length >= MAX_TEAM_SIZE) return;
-    teamRows[team].push({ name: '', cups: '' });
+    teamRows[team].push(blankPlayer());
     renderTeamRows(team);
   }
 
@@ -470,30 +516,57 @@
 
   function captureTeamRows(team) {
     const container = document.getElementById(`team-${team}-rows`);
-    const rows = container.querySelectorAll('.player-row');
+    const rows = container.querySelectorAll('.player-row-block');
     rows.forEach((row, i) => {
-      const nameInput = row.querySelector('.player-name-input');
-      const cupsInput = row.querySelector('.player-cups-input');
-      if (teamRows[team][i]) {
-        teamRows[team][i].name = nameInput.value;
-        teamRows[team][i].cups = cupsInput.value;
-      }
+      if (!teamRows[team][i]) return;
+      teamRows[team][i].name = row.querySelector('.player-name-input').value;
+      teamRows[team][i].cups = row.querySelector('.player-cups-input').value;
+      teamRows[team][i].bmade = row.querySelector('.player-bmade-input').value;
+      teamRows[team][i].btaken = row.querySelector('.player-btaken-input').value;
+      teamRows[team][i].drinks = row.querySelector('.player-drinks-input').value;
+      teamRows[team][i].fire = row.querySelector('.player-fire-input').value;
     });
   }
 
   function renderTeamRows(team) {
     const container = document.getElementById(`team-${team}-rows`);
     container.innerHTML = teamRows[team].map((p, i) => `
-      <div class="player-row">
-        <input type="text" class="player-name-input" list="player-list"
-               placeholder="Player name" value="${escapeHtml(p.name)}"
-               onchange="captureTeamRows('${team}')">
-        <input type="number" class="player-cups-input" min="0" max="${MAX_CUPS}"
-               placeholder="Cups" value="${escapeHtml(p.cups)}"
-               onchange="captureTeamRows('${team}')">
-        ${teamRows[team].length > MIN_TEAM_SIZE
-          ? `<button type="button" class="btn-small" onclick="removePlayerRow('${team}', ${i})">Remove</button>`
-          : ''}
+      <div class="player-row-block">
+        <div class="player-row-top">
+          <input type="text" class="player-name-input" list="player-list"
+                 placeholder="Player name" value="${escapeHtml(p.name)}"
+                 onchange="captureTeamRows('${team}')">
+          ${teamRows[team].length > MIN_TEAM_SIZE
+            ? `<button type="button" class="btn-small" onclick="removePlayerRow('${team}', ${i})">Remove</button>`
+            : ''}
+        </div>
+        <div class="player-stat-grid">
+          <div>
+            <label>Cups</label>
+            <input type="number" class="player-cups-input" min="0" max="${MAX_CUPS}"
+                   placeholder="0" value="${escapeHtml(p.cups)}" onchange="captureTeamRows('${team}')">
+          </div>
+          <div>
+            <label>Bitch cups made</label>
+            <input type="number" class="player-bmade-input" min="0"
+                   placeholder="0" value="${escapeHtml(p.bmade)}" onchange="captureTeamRows('${team}')">
+          </div>
+          <div>
+            <label>Bitch cups taken</label>
+            <input type="number" class="player-btaken-input" min="0"
+                   placeholder="0" value="${escapeHtml(p.btaken)}" onchange="captureTeamRows('${team}')">
+          </div>
+          <div>
+            <label>Drinks</label>
+            <input type="number" class="player-drinks-input" min="0"
+                   placeholder="0" value="${escapeHtml(p.drinks)}" onchange="captureTeamRows('${team}')">
+          </div>
+          <div>
+            <label>Fires</label>
+            <input type="number" class="player-fire-input" min="0"
+                   placeholder="0" value="${escapeHtml(p.fire)}" onchange="captureTeamRows('${team}')">
+          </div>
+        </div>
       </div>
     `).join('');
   }
@@ -529,9 +602,15 @@
       showSavedName();
     }
 
+    const toCount = (v) => (v === '' || v === null || v === undefined) ? 0 : Number(v);
+
     const buildRoster = (rows) => rows.map(p => ({
       player_name: p.name.trim(),
       cups_made: p.cups === '' ? NaN : Number(p.cups),
+      bitch_cups_made: toCount(p.bmade),
+      bitch_cups_taken: toCount(p.btaken),
+      drinks_taken: toCount(p.drinks),
+      fire_count: toCount(p.fire),
     }));
 
     const teamAPlayers = buildRoster(teamRows.a);
@@ -542,6 +621,12 @@
       if (Number.isNaN(p.cups_made) || p.cups_made < 0 || p.cups_made > MAX_CUPS) {
         showError(`${p.player_name}'s cups made needs to be a number between 0 and ${MAX_CUPS}.`);
         return;
+      }
+      for (const [field, label] of [['bitch_cups_made', 'bitch cups made'], ['bitch_cups_taken', 'bitch cups taken'], ['drinks_taken', 'drinks'], ['fire_count', 'fire count']]) {
+        if (Number.isNaN(p[field]) || p[field] < 0) {
+          showError(`${p.player_name}'s ${label} needs to be a number 0 or higher.`);
+          return;
+        }
       }
     }
 
@@ -606,22 +691,42 @@
     const res = await fetch('/api/stats');
     const data = await res.json();
     MAX_CUPS = data.max_cups || 55;
+    const rows = data.leaderboard || [];
+
     const body = document.getElementById('leaderboard-body');
     const empty = document.getElementById('leaderboard-empty');
-    if (!data.leaderboard || data.leaderboard.length === 0) {
+    if (rows.length === 0) {
       body.innerHTML = '';
       empty.style.display = 'block';
-      return;
+    } else {
+      empty.style.display = 'none';
+      body.innerHTML = rows.map(p => `
+        <tr>
+          <td>${escapeHtml(p.player_name)}</td>
+          <td>${p.avg_cups}</td>
+          <td>${p.games_played}</td>
+          <td>${p.win_rate === null ? '--' : p.win_rate + '%'}</td>
+        </tr>
+      `).join('');
     }
-    empty.style.display = 'none';
-    body.innerHTML = data.leaderboard.map(p => `
-      <tr>
-        <td>${escapeHtml(p.player_name)}</td>
-        <td>${p.avg_cups}</td>
-        <td>${p.games_played}</td>
-        <td>${p.win_rate === null ? '--' : p.win_rate + '%'}</td>
-      </tr>
-    `).join('');
+
+    const funBody = document.getElementById('funstats-body');
+    const funEmpty = document.getElementById('funstats-empty');
+    if (rows.length === 0) {
+      funBody.innerHTML = '';
+      funEmpty.style.display = 'block';
+    } else {
+      funEmpty.style.display = 'none';
+      const funRows = [...rows].sort((a, b) => b.total_fires - a.total_fires);
+      funBody.innerHTML = funRows.map(p => `
+        <tr>
+          <td>${escapeHtml(p.player_name)}</td>
+          <td>${p.avg_bitch_cups_made} made / ${p.avg_bitch_cups_taken} taken</td>
+          <td>${p.avg_drinks}</td>
+          <td>${p.total_fires}</td>
+        </tr>
+      `).join('');
+    }
   }
 
   function teamHtml(game, side) {
@@ -637,9 +742,20 @@
             <span>${escapeHtml(p.player_name)}</span>
             <span>${p.cups_made} cups</span>
           </div>
+          ${extraStatsLine(p)}
         `).join('')}
       </div>
     `;
+  }
+
+  function extraStatsLine(p) {
+    const bits = [];
+    if (p.bitch_cups_made) bits.push(`${p.bitch_cups_made} bitch cups made`);
+    if (p.bitch_cups_taken) bits.push(`${p.bitch_cups_taken} bitch cups taken`);
+    if (p.drinks_taken) bits.push(`${p.drinks_taken} drinks`);
+    if (p.fire_count) bits.push(`&#128293;&times;${p.fire_count}`);
+    if (bits.length === 0) return '';
+    return `<div style="font-size:11px;color:var(--text-muted);padding-left:2px;margin-top:-2px;">${bits.join(' &middot; ')}</div>`;
   }
 
   async function loadHistory() {

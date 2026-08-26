@@ -27,11 +27,30 @@ app = Flask(__name__, static_folder=None)
 MAX_CUPS = 55
 MIN_TEAM_SIZE = 2
 MAX_TEAM_SIZE = 5
+MAX_BITCH_CUPS = 55
+MAX_DRINKS = 200
+MAX_FIRE_COUNT = 55
+MAX_BITCH_CUPS_TAKEN = 55
 
 
 @app.route("/")
 def index():
     return send_from_directory(".", "cup55_index.html")
+
+
+def _optional_nonneg_int(raw, field_label, player_name, cap):
+    """Parses an optional per-player stat (bitch cups / drinks / fires):
+    blank/missing defaults to 0, otherwise must be a non-negative integer
+    up to `cap`."""
+    if raw is None or raw == "":
+        return 0, None
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None, f"{player_name}'s {field_label} needs to be a number."
+    if value < 0 or value > cap:
+        return None, f"{player_name}'s {field_label} has to be between 0 and {cap}."
+    return value, None
 
 
 def _validate_roster(raw_players, label):
@@ -42,16 +61,31 @@ def _validate_roster(raw_players, label):
 
     players = []
     for p in raw_players:
-        name = str((p or {}).get("player_name", "")).strip()
+        p = p or {}
+        name = str(p.get("player_name", "")).strip()
         if not name:
             return None, f"Every player on {label} needs a name."
         try:
-            cups = int((p or {}).get("cups_made"))
+            cups = int(p.get("cups_made"))
         except (TypeError, ValueError):
             return None, f"{name}'s cups made needs to be a number."
         if cups < 0 or cups > MAX_CUPS:
             return None, f"{name}'s cups made has to be between 0 and {MAX_CUPS}."
-        players.append((name, cups))
+
+        bitch_made, error = _optional_nonneg_int(p.get("bitch_cups_made"), "bitch cups made", name, MAX_BITCH_CUPS)
+        if error:
+            return None, error
+        bitch_taken, error = _optional_nonneg_int(p.get("bitch_cups_taken"), "bitch cups taken", name, MAX_BITCH_CUPS_TAKEN)
+        if error:
+            return None, error
+        drinks, error = _optional_nonneg_int(p.get("drinks_taken"), "drinks taken", name, MAX_DRINKS)
+        if error:
+            return None, error
+        fire, error = _optional_nonneg_int(p.get("fire_count"), "fire count", name, MAX_FIRE_COUNT)
+        if error:
+            return None, error
+
+        players.append((name, cups, bitch_made, bitch_taken, drinks, fire))
     return players, None
 
 
@@ -138,12 +172,20 @@ def api_stats():
                     "player_name": name,
                     "games_played": 0,
                     "total_cups": 0,
+                    "total_bitch_cups_made": 0,
+                    "total_bitch_cups_taken": 0,
+                    "total_drinks": 0,
+                    "total_fires": 0,
                     "wins": 0,
                     "losses": 0,
                     "unrecorded_results": 0,
                 })
                 stats["games_played"] += 1
                 stats["total_cups"] += p["cups_made"]
+                stats["total_bitch_cups_made"] += p.get("bitch_cups_made", 0) or 0
+                stats["total_bitch_cups_taken"] += p.get("bitch_cups_taken", 0) or 0
+                stats["total_drinks"] += p.get("drinks_taken", 0) or 0
+                stats["total_fires"] += p.get("fire_count", 0) or 0
                 if won is True:
                     stats["wins"] += 1
                 elif won is False:
@@ -155,9 +197,19 @@ def api_stats():
     for stats in by_player.values():
         games_played = stats["games_played"]
         avg_cups = round(stats["total_cups"] / games_played, 2) if games_played else 0
+        avg_bitch_cups_made = round(stats["total_bitch_cups_made"] / games_played, 2) if games_played else 0
+        avg_bitch_cups_taken = round(stats["total_bitch_cups_taken"] / games_played, 2) if games_played else 0
+        avg_drinks = round(stats["total_drinks"] / games_played, 2) if games_played else 0
         decided = stats["wins"] + stats["losses"]
         win_rate = round(stats["wins"] / decided * 100, 1) if decided else None
-        leaderboard.append({**stats, "avg_cups": avg_cups, "win_rate": win_rate})
+        leaderboard.append({
+            **stats,
+            "avg_cups": avg_cups,
+            "avg_bitch_cups_made": avg_bitch_cups_made,
+            "avg_bitch_cups_taken": avg_bitch_cups_taken,
+            "avg_drinks": avg_drinks,
+            "win_rate": win_rate,
+        })
 
     leaderboard.sort(key=lambda s: (-s["avg_cups"], -s["games_played"]))
     return jsonify({

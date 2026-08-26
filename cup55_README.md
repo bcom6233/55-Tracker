@@ -27,6 +27,10 @@ full game history.
   assuming a full 55-cup rack gets cleared. It's a rough estimate, not a
   guarantee -- someone who's only played 2v2 might play differently once
   there are more people on their side.
+- **Fun Stats**: per-player bitch cups made and bitch cups taken (per
+  game), drinks taken (per game), and total times someone caught fire
+  (hit 3 in a row after a rerack). These are all optional when logging a
+  game -- leave any of them blank and they default to 0.
 
 ## Running it locally
 
