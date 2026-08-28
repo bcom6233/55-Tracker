@@ -30,9 +30,14 @@ full game history.
   guarantee -- someone who's only played 2v2 might play differently once
   there are more people on their side.
 - **Fun Stats**: per-player bitch cups made and bitch cups taken (per
-  game), drinks taken (per game), and total times someone caught fire
-  (hit 3 in a row after a rerack). These are all optional when logging a
-  game -- leave any of them blank and they default to 0.
+  game), drinks taken (per game), total times someone caught fire (hit 3
+  in a row after a rerack), and total last cups (see below). These are
+  all optional when logging a game -- leave any of them blank and they
+  default to 0.
+- **Last Cup**: pick who made the game-ending cup from a dropdown that's
+  automatically filled with whoever's currently in the rosters -- no
+  typing, no mismatched names. Shows up in that game's history entry and
+  counts toward a player's total on the Fun Stats table.
 
 ## Running it locally
 

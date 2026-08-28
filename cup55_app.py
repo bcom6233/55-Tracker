@@ -144,6 +144,12 @@ def _validate_game(data):
     if winner not in ("A", "B"):
         winner = None
 
+    last_cup_player = str(data.get("last_cup_player") or "").strip() or None
+    if last_cup_player:
+        roster_names = {p[0].lower() for p in team_a_players + team_b_players}
+        if last_cup_player.lower() not in roster_names:
+            return None, "Last cup has to be one of the players in this game."
+
     game = {
         "game_date": game_date,
         "session_label": data.get("session_label"),
@@ -153,6 +159,7 @@ def _validate_game(data):
         "logged_by": logged_by,
         "team_a_players": team_a_players,
         "team_b_players": team_b_players,
+        "last_cup_player": last_cup_player,
     }
     return game, None
 
@@ -172,6 +179,7 @@ def api_add_game():
     game_id = db.add_game(
         game["game_date"], game["session_label"], game["team_a_name"], game["team_b_name"],
         game["winner"], game["logged_by"], game["team_a_players"], game["team_b_players"],
+        game["last_cup_player"],
     )
     return jsonify({"ok": True, "id": game_id})
 
@@ -186,7 +194,7 @@ def api_update_game(game_id):
     updated = db.update_game(
         game_id, game["logged_by"], game["game_date"], game["session_label"],
         game["team_a_name"], game["team_b_name"], game["winner"],
-        game["team_a_players"], game["team_b_players"],
+        game["team_a_players"], game["team_b_players"], game["last_cup_player"],
     )
     if not updated:
         return jsonify({"error": "Game not found, or it isn't yours to edit."}), 404
@@ -230,6 +238,7 @@ def api_stats():
                     "total_bitch_cups_taken": 0,
                     "total_drinks": 0,
                     "total_fires": 0,
+                    "total_last_cups": 0,
                     "wins": 0,
                     "losses": 0,
                     "unrecorded_results": 0,
@@ -240,6 +249,9 @@ def api_stats():
                 stats["total_bitch_cups_taken"] += p.get("bitch_cups_taken", 0) or 0
                 stats["total_drinks"] += p.get("drinks_taken", 0) or 0
                 stats["total_fires"] += p.get("fire_count", 0) or 0
+                last_cup = (g.get("last_cup_player") or "").strip().lower()
+                if last_cup and last_cup == name.strip().lower():
+                    stats["total_last_cups"] += 1
                 if won is True:
                     stats["wins"] += 1
                 elif won is False:

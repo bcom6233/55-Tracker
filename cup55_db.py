@@ -61,9 +61,20 @@ def init_db():
                 team_b_name TEXT,
                 winner TEXT,
                 logged_by TEXT,
-                created_at REAL NOT NULL
+                created_at REAL NOT NULL,
+                last_cup_player TEXT
             )
         """)
+        existing_game_cols = {
+            r["name"] for r in _rows_to_dicts(
+                conn.execute("SELECT name FROM pragma_table_info('games')")
+            )
+        }
+        if "last_cup_player" not in existing_game_cols:
+            try:
+                conn.execute("ALTER TABLE games ADD COLUMN last_cup_player TEXT")
+            except Exception:
+                pass
         conn.execute("""
             CREATE TABLE IF NOT EXISTS game_players (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,18 +108,19 @@ def init_db():
 
 
 def add_game(game_date, session_label, team_a_name, team_b_name, winner, logged_by,
-             team_a_players, team_b_players):
+             team_a_players, team_b_players, last_cup_player=None):
     """team_a_players / team_b_players: list of
     (player_name, cups_made, bitch_cups_made, bitch_cups_taken, drinks_taken, fire_count) tuples."""
     conn = _connect()
     try:
         cur = conn.execute(
             """INSERT INTO games
-               (game_date, session_label, team_a_name, team_b_name, winner, logged_by, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id""",
+               (game_date, session_label, team_a_name, team_b_name, winner, logged_by, created_at, last_cup_player)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
             (game_date, (session_label or "").strip() or None,
              (team_a_name or "").strip() or None, (team_b_name or "").strip() or None,
-             winner, (logged_by or "").strip() or None, time.time()),
+             winner, (logged_by or "").strip() or None, time.time(),
+             (last_cup_player or "").strip() or None),
         )
         game_id = _row_to_dict(cur)["id"]
         for team, players in (("A", team_a_players), ("B", team_b_players)):
@@ -126,7 +138,7 @@ def add_game(game_date, session_label, team_a_name, team_b_name, winner, logged_
 
 
 def update_game(game_id, requesting_name, game_date, session_label, team_a_name, team_b_name, winner,
-                 team_a_players, team_b_players):
+                 team_a_players, team_b_players, last_cup_player=None):
     """Only lets the person who originally logged a game edit it -- matched
     by name, same rule as delete_game. Replaces the whole roster (simplest
     way to handle players being added/removed/changed on an edit) but
@@ -138,11 +150,11 @@ def update_game(game_id, requesting_name, game_date, session_label, team_a_name,
         if row is None or (row["logged_by"] or "").strip().lower() != requesting_name.strip().lower():
             return False
         conn.execute(
-            """UPDATE games SET game_date = ?, session_label = ?, team_a_name = ?, team_b_name = ?, winner = ?
-               WHERE id = ?""",
+            """UPDATE games SET game_date = ?, session_label = ?, team_a_name = ?, team_b_name = ?, winner = ?,
+               last_cup_player = ? WHERE id = ?""",
             (game_date, (session_label or "").strip() or None,
              (team_a_name or "").strip() or None, (team_b_name or "").strip() or None,
-             winner, game_id),
+             winner, (last_cup_player or "").strip() or None, game_id),
         )
         conn.execute("DELETE FROM game_players WHERE game_id = ?", (game_id,))
         for team, players in (("A", team_a_players), ("B", team_b_players)):

@@ -413,6 +413,11 @@
       <button id="winner-btn-none" onclick="setWinner(null)">Not sure</button>
     </div>
 
+    <label for="last-cup-player">Who got the last cup? (optional)</label>
+    <select id="last-cup-player">
+      <option value="">Not sure / not tracked</option>
+    </select>
+
     <div class="error-box" id="error-box"></div>
 
     <button class="btn-primary" id="submit-game-btn" onclick="submitGame()">Log game</button>
@@ -434,7 +439,7 @@
     <h2>Fun Stats</h2>
     <table>
       <thead>
-        <tr><th>Player</th><th>Bitch cups/game</th><th>Drinks/game</th><th>Fires (total)</th></tr>
+        <tr><th>Player</th><th>Bitch cups/game</th><th>Drinks/game</th><th>Fires (total)</th><th>Last cups (total)</th></tr>
       </thead>
       <tbody id="funstats-body"></tbody>
     </table>
@@ -594,6 +599,7 @@
       teamRows[team][i].drinks = row.querySelector('.player-drinks-input').value;
       teamRows[team][i].fire = row.querySelector('.player-fire-input').value;
     });
+    refreshLastCupOptions();
   }
 
   function renderTeamRows(team) {
@@ -637,6 +643,18 @@
         </div>
       </div>
     `).join('');
+    refreshLastCupOptions();
+  }
+
+  function refreshLastCupOptions() {
+    const select = document.getElementById('last-cup-player');
+    const current = select.value;
+    const names = [...teamRows.a, ...teamRows.b]
+      .map(p => p.name.trim())
+      .filter(n => n.length > 0);
+    select.innerHTML = '<option value="">Not sure / not tracked</option>'
+      + names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+    if (names.includes(current)) select.value = current;
   }
 
   function setWinner(val) {
@@ -707,6 +725,7 @@
       winner: winnerValue,
       team_a_players: teamAPlayers,
       team_b_players: teamBPlayers,
+      last_cup_player: document.getElementById('last-cup-player').value,
     };
 
     const isEditing = editingGameId !== null;
@@ -765,6 +784,7 @@
     teamRows.b = g.team_b_players.map(toRow);
     renderTeamRows('a');
     renderTeamRows('b');
+    document.getElementById('last-cup-player').value = g.last_cup_player || '';
     setWinner(g.winner);
 
     document.getElementById('log-game-heading').textContent = 'Edit game';
@@ -838,6 +858,7 @@
           <td>${p.avg_bitch_cups_made} made / ${p.avg_bitch_cups_taken} taken</td>
           <td>${p.avg_drinks}</td>
           <td>${p.total_fires}</td>
+          <td>${p.total_last_cups}</td>
         </tr>
       `).join('');
     }
@@ -895,6 +916,7 @@
             ${teamHtml(g, 'A')}
             ${teamHtml(g, 'B')}
           </div>
+          ${g.last_cup_player ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">&#127942; Last cup: ${escapeHtml(g.last_cup_player)}</div>` : ''}
           ${g.logged_by && g.logged_by === name ? `
             <div class="history-actions">
               <button class="btn-small" onclick="startEditGame(${g.id})">Edit</button>
