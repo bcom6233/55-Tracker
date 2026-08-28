@@ -16,8 +16,10 @@ full game history.
   with total games played and win rate.
 - **History**: every logged game, newest first, showing both rosters
   side by side with the winning team highlighted. Whoever logged a game
-  can delete it (e.g. to fix a mistake) -- matched by the name they saved
-  on their phone, no accounts or passwords needed.
+  can edit or delete it (e.g. to fix a mistake, add someone who was left
+  off, or correct a score) -- matched by the name they saved on their
+  phone, no accounts or passwords needed. Editing loads the game back
+  into the log-a-game form so you can change anything and save.
 - Player names autocomplete from everyone who's ever been logged, so
   typing "Ja" after a few games will suggest "Jake."
 - **Team Size Projector**: estimates what each person might average in a
@@ -97,6 +99,42 @@ restart, but fine for testing on your own computer). Any games already
 logged in the old local-file version won't carry over automatically,
 since they're two different databases -- but everything logged after
 the switch will stick around for good.
+
+## Locking it down to a shared passcode
+
+By default anyone who has the link can open the app. To require a shared
+code first -- so even someone who stumbles on the URL sees nothing until
+they enter it -- set an environment variable on Render:
+
+1. On your Render service, go to **Environment** and add a variable
+   named `SITE_PASSCODE` with whatever code you want to use (e.g.
+   `goldenchi26`).
+2. Save, then **Manual Deploy → Deploy latest commit**.
+
+That's it -- the app checks for this variable on startup. If it's set,
+every visitor sees a lock screen first; once someone enters the right
+code, their browser stays unlocked for a year (no need to re-enter it
+every visit) unless the app's session key resets, which happens whenever
+Render restarts (same free-tier tradeoff as everything else on this
+app -- just re-enter the code if that happens). If `SITE_PASSCODE` isn't
+set at all, the app behaves exactly as before -- open to anyone with the
+link.
+
+This is a shared-secret gate, not real accounts -- fine for keeping
+random internet traffic and search engines out, but anyone who has the
+code can see and log games. If you ever want to change the code, just
+update the `SITE_PASSCODE` value on Render and redeploy.
+
+## Adding new stats later without losing games
+
+`cup55_db.py` checks for missing columns on startup and adds them
+automatically (existing games just get 0 for the new stat) -- that's how
+Fun Stats got added after games already existed. So new stat columns are
+always safe to add. The one thing that isn't automatic is wiring up the
+new field everywhere it needs to show up: the input on the log-a-game
+form, the validation in `cup55_app.py`, and wherever it should display
+(leaderboard, Fun Stats, history). Just ask and it can be added the same
+way the existing ones were.
 
 ## Project files
 

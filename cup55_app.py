@@ -15,14 +15,22 @@ When deployed to a host like Render, the PORT environment variable is set
 automatically by the host and the app binds to 0.0.0.0 so it's reachable
 from outside (e.g. from everyone's phones), not just from one computer.
 """
+import hmac
 import os
-from datetime import date
+import secrets
+from datetime import date, timedelta
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, session
 
 import cup55_db as db
 
 app = Flask(__name__, static_folder=None)
+# Needed to sign the login session cookie. If FLASK_SECRET_KEY isn't set,
+# a random one is generated at startup -- that just means everyone's
+# session resets (they have to re-enter the passcode) whenever the app
+# restarts, same tradeoff as the rest of this app's free-tier hosting.
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
+app.permanent_session_lifetime = timedelta(days=365)
 
 MAX_CUPS = 55
 MIN_TEAM_SIZE = 2
@@ -31,6 +39,35 @@ MAX_BITCH_CUPS = 55
 MAX_DRINKS = 200
 MAX_FIRE_COUNT = 55
 MAX_BITCH_CUPS_TAKEN = 55
+
+# Optional shared-passcode gate. If SITE_PASSCODE isn't set, the app is
+# wide open to anyone with the link (the old behavior) -- no code changes
+# needed either way, it just activates once the env var is set on Render.
+SITE_PASSCODE = os.environ.get("SITE_PASSCODE")
+
+
+@app.before_request
+def _require_passcode():
+    if not SITE_PASSCODE:
+        return None
+    if request.path in ("/", "/api/login"):
+        return None
+    if session.get("authed"):
+        return None
+    return jsonify({"error": "locked", "locked": True}), 401
+
+
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    if not SITE_PASSCODE:
+        return jsonify({"ok": True})
+    data = request.get_json(silent=True) or {}
+    entered = str(data.get("passcode", ""))
+    if entered and hmac.compare_digest(entered, SITE_PASSCODE):
+        session.permanent = True
+        session["authed"] = True
+        return jsonify({"ok": True})
+    return jsonify({"error": "Wrong passcode."}), 403
 
 
 @app.route("/")
@@ -137,6 +174,23 @@ def api_add_game():
         game["winner"], game["logged_by"], game["team_a_players"], game["team_b_players"],
     )
     return jsonify({"ok": True, "id": game_id})
+
+
+@app.route("/api/games/<int:game_id>", methods=["PUT"])
+def api_update_game(game_id):
+    data = request.get_json(silent=True) or {}
+    game, error = _validate_game(data)
+    if error:
+        return jsonify({"error": error}), 400
+
+    updated = db.update_game(
+        game_id, game["logged_by"], game["game_date"], game["session_label"],
+        game["team_a_name"], game["team_b_name"], game["winner"],
+        game["team_a_players"], game["team_b_players"],
+    )
+    if not updated:
+        return jsonify({"error": "Game not found, or it isn't yours to edit."}), 404
+    return jsonify({"ok": True})
 
 
 @app.route("/api/games/<int:game_id>", methods=["DELETE"])

@@ -309,6 +309,7 @@
   .history-player { display: flex; justify-content: space-between; padding: 2px 0; }
 
   .history-actions { margin-top: 8px; text-align: right; }
+  .history-actions button + button { margin-left: 6px; }
 
   .empty-note { color: var(--text-muted); font-size: 13px; text-align: center; padding: 10px 0; }
 
@@ -321,9 +322,60 @@
     border-radius: 999px;
     font-size: 13px;
   }
+
+  #lock-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg, var(--purple) 0%, var(--purple-dark) 100%);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  #lock-overlay .lock-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 28px 22px;
+    max-width: 320px;
+    width: 100%;
+    text-align: center;
+  }
+
+  #lock-overlay .crest {
+    font-size: 24px;
+    letter-spacing: 5px;
+    font-weight: 700;
+    color: var(--purple);
+    margin-bottom: 10px;
+  }
+
+  #lock-overlay h2 {
+    margin: 0 0 4px;
+    font-size: 17px;
+    color: var(--purple-dark);
+  }
+
+  #lock-overlay p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0 0 14px;
+  }
 </style>
 </head>
 <body>
+
+<div id="lock-overlay">
+  <div class="lock-card">
+    <div class="crest">&Lambda; &Chi; &Alpha;</div>
+    <h2>Enter the code</h2>
+    <p>Ask a brother for the passcode to get in.</p>
+    <input type="password" id="passcode-input" placeholder="Passcode" autocomplete="off">
+    <button class="btn-primary" onclick="submitPasscode()">Unlock</button>
+    <div class="error-box" id="lock-error-box"></div>
+  </div>
+</div>
 
 <header>
   <div class="crest">&Lambda; &Chi; &Alpha;</div>
@@ -346,8 +398,8 @@
     </p>
   </div>
 
-  <div class="card">
-    <h2>Log a game</h2>
+  <div class="card" id="log-game-card">
+    <h2 id="log-game-heading">Log a game</h2>
 
     <div class="row-inline">
       <div>
@@ -391,7 +443,8 @@
 
     <div class="error-box" id="error-box"></div>
 
-    <button class="btn-primary" onclick="submitGame()">Log game</button>
+    <button class="btn-primary" id="submit-game-btn" onclick="submitGame()">Log game</button>
+    <button class="btn-secondary" id="cancel-edit-btn" style="display:none;margin-top:8px;width:100%;" onclick="cancelEdit()">Cancel edit</button>
   </div>
 
   <div class="card">
@@ -458,6 +511,49 @@
   let winnerValue = null; // 'A' | 'B' | null
   let lastGames = [];
   let projectorSize = 4;
+  let editingGameId = null;
+
+  async function apiFetch(url, opts) {
+    const res = await fetch(url, opts);
+    if (res.status === 401) {
+      showLock();
+      return null;
+    }
+    return res;
+  }
+
+  function showLock() {
+    document.getElementById('lock-overlay').style.display = 'flex';
+  }
+
+  function hideLock() {
+    document.getElementById('lock-overlay').style.display = 'none';
+  }
+
+  async function submitPasscode() {
+    const box = document.getElementById('lock-error-box');
+    box.style.display = 'none';
+    const passcode = document.getElementById('passcode-input').value;
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        box.textContent = data.error || "Wrong passcode.";
+        box.style.display = 'block';
+        return;
+      }
+      hideLock();
+      document.getElementById('passcode-input').value = '';
+      initApp();
+    } catch (e) {
+      box.textContent = "Couldn't reach the server. Try again.";
+      box.style.display = 'block';
+    }
+  }
 
   function myName() {
     return (localStorage.getItem('cup55_my_name') || '').trim();
@@ -641,18 +737,23 @@
       team_b_players: teamBPlayers,
     };
 
+    const isEditing = editingGameId !== null;
+    const url = isEditing ? `/api/games/${editingGameId}` : '/api/games';
+    const method = isEditing ? 'PUT' : 'POST';
+
     try {
-      const res = await fetch('/api/games', {
-        method: 'POST',
+      const res = await apiFetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      if (!res) return;
       const data = await res.json();
       if (!res.ok) {
-        showError(data.error || "Couldn't log that game.");
+        showError(data.error || (isEditing ? "Couldn't save those changes." : "Couldn't log that game."));
         return;
       }
-      resetForm();
+      cancelEdit();
       loadLeaderboard();
       loadHistory();
       loadPlayers();
@@ -669,15 +770,55 @@
     initTeamRows();
   }
 
+  function startEditGame(id) {
+    const g = lastGames.find(x => x.id === id);
+    if (!g) return;
+    hideError();
+    editingGameId = id;
+
+    document.getElementById('game-date').value = g.game_date;
+    document.getElementById('session-label').value = g.session_label || '';
+    document.getElementById('team-a-name').value = g.team_a_name || '';
+    document.getElementById('team-b-name').value = g.team_b_name || '';
+
+    const toRow = (p) => ({
+      name: p.player_name,
+      cups: String(p.cups_made),
+      bmade: p.bitch_cups_made ? String(p.bitch_cups_made) : '',
+      btaken: p.bitch_cups_taken ? String(p.bitch_cups_taken) : '',
+      drinks: p.drinks_taken ? String(p.drinks_taken) : '',
+      fire: p.fire_count ? String(p.fire_count) : '',
+    });
+    teamRows.a = g.team_a_players.map(toRow);
+    teamRows.b = g.team_b_players.map(toRow);
+    renderTeamRows('a');
+    renderTeamRows('b');
+    setWinner(g.winner);
+
+    document.getElementById('log-game-heading').textContent = 'Edit game';
+    document.getElementById('submit-game-btn').textContent = 'Save changes';
+    document.getElementById('cancel-edit-btn').style.display = 'block';
+    document.getElementById('log-game-card').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function cancelEdit() {
+    editingGameId = null;
+    document.getElementById('log-game-heading').textContent = 'Log a game';
+    document.getElementById('submit-game-btn').textContent = 'Log game';
+    document.getElementById('cancel-edit-btn').style.display = 'none';
+    resetForm();
+  }
+
   async function deleteGame(id) {
     const logged_by = myName();
     if (!logged_by) return;
     if (!confirm('Delete this game?')) return;
-    const res = await fetch(`/api/games/${id}`, {
+    const res = await apiFetch(`/api/games/${id}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ logged_by }),
     });
+    if (!res) return;
     if (res.ok) {
       loadHistory();
       loadLeaderboard();
@@ -688,7 +829,8 @@
   }
 
   async function loadLeaderboard() {
-    const res = await fetch('/api/stats');
+    const res = await apiFetch('/api/stats');
+    if (!res) return;
     const data = await res.json();
     MAX_CUPS = data.max_cups || 55;
     const rows = data.leaderboard || [];
@@ -759,7 +901,8 @@
   }
 
   async function loadHistory() {
-    const res = await fetch('/api/games');
+    const res = await apiFetch('/api/games');
+    if (!res) return;
     const data = await res.json();
     lastGames = data.games || [];
     const list = document.getElementById('history-list');
@@ -782,6 +925,7 @@
           </div>
           ${g.logged_by && g.logged_by === name ? `
             <div class="history-actions">
+              <button class="btn-small" onclick="startEditGame(${g.id})">Edit</button>
               <button class="btn-small" onclick="deleteGame(${g.id})">Delete</button>
             </div>` : ''}
         </div>
@@ -849,20 +993,31 @@
   }
 
   async function loadPlayers() {
-    const res = await fetch('/api/players');
+    const res = await apiFetch('/api/players');
+    if (!res) return;
     const data = await res.json();
     const datalist = document.getElementById('player-list');
     datalist.innerHTML = (data.players || []).map(p => `<option value="${escapeHtml(p)}">`).join('');
   }
 
-  // init
-  document.getElementById('game-date').value = new Date().toISOString().slice(0, 10);
-  document.getElementById('my-name').value = myName();
-  showSavedName();
-  initTeamRows();
-  loadLeaderboard();
-  loadHistory();
-  loadPlayers();
+  function initApp() {
+    document.getElementById('game-date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('my-name').value = myName();
+    showSavedName();
+    initTeamRows();
+    loadLeaderboard();
+    loadHistory();
+    loadPlayers();
+  }
+
+  document.getElementById('passcode-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitPasscode();
+  });
+
+  // init -- if a passcode gate is active and this browser hasn't unlocked
+  // it yet, the first data request below will 401 and the lock overlay
+  // takes over; submitPasscode() calls initApp() again once unlocked.
+  initApp();
 </script>
 
 </body>
