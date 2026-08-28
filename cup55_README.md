@@ -71,21 +71,41 @@ address everyone can open.
 no traffic, so the first load after a while takes 30-60 seconds to wake
 up. After that it's normal speed. Fine for a casual tracker.
 
-**Heads up on the database**: this app stores everything in a small local
-file (SQLite). On Render's free tier, that file resets whenever the app
-restarts or wakes up from sleep, which means game history could
-occasionally get wiped. For a casual tracker that's usually fine -- if
-you want the history to survive long-term, the easiest fix is upgrading
-to a Render plan with a persistent disk.
+**Heads up on the database -- and how to make it permanent**: by default
+this app stores everything in a small local file (SQLite). On Render's
+free tier, that file gets wiped every time the app restarts or wakes up
+from sleep, so game history keeps disappearing. To fix that for good,
+connect a free [Turso](https://turso.tech) database -- it's the same SQL
+under the hood, it's free forever (no card, no expiration, 5GB storage),
+and the app switches to using it automatically once it's set up:
+
+1. Sign up at [turso.tech](https://turso.tech) and create a database
+   (the dashboard walks you through it -- takes about 2 minutes).
+2. From the database's page, grab two things: the **database URL**
+   (starts with `libsql://`) and an **auth token**.
+3. On your Render service, go to **Environment** and add two
+   environment variables:
+   - `TURSO_DATABASE_URL` -- paste the database URL
+   - `TURSO_AUTH_TOKEN` -- paste the auth token
+4. Save, then **Manual Deploy → Deploy latest commit** so the app
+   restarts with those variables set.
+
+That's it -- no other changes needed. The app checks for those two
+variables on startup: if they're set, it uses Turso (permanent); if
+they're not, it falls back to the local SQLite file (gets wiped on
+restart, but fine for testing on your own computer). Any games already
+logged in the old local-file version won't carry over automatically,
+since they're two different databases -- but everything logged after
+the switch will stick around for good.
 
 ## Project files
 
 | File | What it's for |
 |---|---|
 | `cup55_app.py` | Flask backend: routes for logging games, leaderboard, history |
-| `cup55_db.py` | SQLite storage -- one `games` row per game, one `game_players` row per player on either roster |
+| `cup55_db.py` | Storage layer -- one `games` row per game, one `game_players` row per player on either roster. Uses local SQLite by default, or Turso (permanent) if `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` are set |
 | `cup55_index.html` | The whole frontend -- name saver, log-a-game form with dynamic team rosters, leaderboard, history, Lambda Chi Alpha (purple/green/gold) styling |
-| `cup55_requirements.txt` | Python dependencies (just Flask) |
+| `cup55_requirements.txt` | Python dependencies (Flask + the `libsql` client for Turso) |
 
 ## Changing team size or max cups
 

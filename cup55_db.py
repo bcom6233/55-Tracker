@@ -1,32 +1,52 @@
 """
-SQLite layer for the Game of 55 cup tracker (Lambda Chi Alpha edition).
+Storage layer for the Game of 55 cup tracker (Lambda Chi Alpha edition).
+
+By default this uses a local SQLite file, which is fine for testing on
+your own computer but gets wiped whenever Render's free tier restarts or
+wakes from sleep (its filesystem isn't persistent). To keep game history
+around permanently, set two environment variables on Render --
+TURSO_DATABASE_URL and TURSO_AUTH_TOKEN (from a free turso.tech account)
+-- and this file automatically switches to that instead. No other code
+changes needed; every function below works the same either way.
 
 This logs a whole game at once: one "games" row per game (date, session,
 team names, who won, who logged it) plus one "game_players" row per
-player on either roster (their name, team, and cups made). One brother
-can log an entire game -- both rosters and every score -- right after it
-happens, instead of every player needing to open the app themselves.
-
-Averages, win rate, and history are all computed by grouping
-game_players rows by player_name, joined back to their parent game to
-figure out who won.
-
-Note: if this app is deployed on a host with an ephemeral filesystem
-(like Render's free tier), this SQLite file may reset whenever the app
-restarts or wakes from sleep. See the README for details.
+player on either roster (their name, team, cups made, and the optional
+Fun Stats -- bitch cups made/taken, drinks, fire count). Averages, win
+rate, and history are all computed by grouping game_players rows by
+player_name, joined back to their parent game to figure out who won.
 """
-import sqlite3
 import os
 import time
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cup55.db")
+TURSO_URL = os.environ.get("TURSO_DATABASE_URL")
+TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
+USING_TURSO = bool(TURSO_URL)
+
+if USING_TURSO:
+    import libsql
+
+    def _connect():
+        return libsql.connect(database=TURSO_URL, auth_token=TURSO_AUTH_TOKEN)
+else:
+    import sqlite3
+
+    DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cup55.db")
+
+    def _connect():
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
 
 
-def _connect():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+def _rows_to_dicts(cur):
+    cols = [d[0] for d in cur.description]
+    return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+
+def _row_to_dict(cur):
+    rows = _rows_to_dicts(cur)
+    return rows[0] if rows else None
 
 
 def init_db():
@@ -47,7 +67,7 @@ def init_db():
         conn.execute("""
             CREATE TABLE IF NOT EXISTS game_players (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+                game_id INTEGER NOT NULL,
                 team TEXT NOT NULL,
                 player_name TEXT NOT NULL,
                 cups_made INTEGER NOT NULL,
@@ -58,11 +78,19 @@ def init_db():
             )
         """)
         # Migrate any game_players table created before these columns
-        # existed (SQLite has no "ADD COLUMN IF NOT EXISTS", so check first).
-        existing_cols = {row["name"] for row in conn.execute("PRAGMA table_info(game_players)")}
+        # existed (SQLite/libSQL have no "ADD COLUMN IF NOT EXISTS", so
+        # check first).
+        existing_cols = {
+            r["name"] for r in _rows_to_dicts(
+                conn.execute("SELECT name FROM pragma_table_info('game_players')")
+            )
+        }
         for col in ("bitch_cups_made", "bitch_cups_taken", "drinks_taken", "fire_count"):
             if col not in existing_cols:
-                conn.execute(f"ALTER TABLE game_players ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0")
+                try:
+                    conn.execute(f"ALTER TABLE game_players ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0")
+                except Exception:
+                    pass
         conn.commit()
     finally:
         conn.close()
@@ -77,12 +105,12 @@ def add_game(game_date, session_label, team_a_name, team_b_name, winner, logged_
         cur = conn.execute(
             """INSERT INTO games
                (game_date, session_label, team_a_name, team_b_name, winner, logged_by, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id""",
             (game_date, (session_label or "").strip() or None,
              (team_a_name or "").strip() or None, (team_b_name or "").strip() or None,
              winner, (logged_by or "").strip() or None, time.time()),
         )
-        game_id = cur.lastrowid
+        game_id = _row_to_dict(cur)["id"]
         for team, players in (("A", team_a_players), ("B", team_b_players)):
             for name, cups, bitch_made, bitch_taken, drinks, fire in players:
                 conn.execute(
@@ -102,13 +130,13 @@ def delete_game(game_id, logged_by):
     matched by name since there's no real login system here."""
     conn = _connect()
     try:
-        row = conn.execute("SELECT logged_by FROM games WHERE id = ?", (game_id,)).fetchone()
+        row = _row_to_dict(conn.execute("SELECT logged_by FROM games WHERE id = ?", (game_id,)))
         if row is None or (row["logged_by"] or "").strip().lower() != logged_by.strip().lower():
             return False
         conn.execute("DELETE FROM game_players WHERE game_id = ?", (game_id,))
-        cur = conn.execute("DELETE FROM games WHERE id = ?", (game_id,))
+        conn.execute("DELETE FROM games WHERE id = ?", (game_id,))
         conn.commit()
-        return cur.rowcount > 0
+        return True
     finally:
         conn.close()
 
@@ -116,22 +144,17 @@ def delete_game(game_id, logged_by):
 def all_games():
     conn = _connect()
     try:
-        games = conn.execute(
-            "SELECT * FROM games ORDER BY game_date DESC, created_at DESC"
-        ).fetchall()
-        players = conn.execute(
-            "SELECT * FROM game_players ORDER BY id ASC"
-        ).fetchall()
+        games = _rows_to_dicts(conn.execute("SELECT * FROM games ORDER BY game_date DESC, created_at DESC"))
+        players = _rows_to_dicts(conn.execute("SELECT * FROM game_players ORDER BY id ASC"))
         by_game = {}
         for p in players:
-            by_game.setdefault(p["game_id"], []).append(dict(p))
+            by_game.setdefault(p["game_id"], []).append(p)
         result = []
         for g in games:
-            gd = dict(g)
             roster = by_game.get(g["id"], [])
-            gd["team_a_players"] = [p for p in roster if p["team"] == "A"]
-            gd["team_b_players"] = [p for p in roster if p["team"] == "B"]
-            result.append(gd)
+            g["team_a_players"] = [p for p in roster if p["team"] == "A"]
+            g["team_b_players"] = [p for p in roster if p["team"] == "B"]
+            result.append(g)
         return result
     finally:
         conn.close()
@@ -140,9 +163,9 @@ def all_games():
 def player_names():
     conn = _connect()
     try:
-        rows = conn.execute(
+        rows = _rows_to_dicts(conn.execute(
             "SELECT DISTINCT player_name FROM game_players ORDER BY player_name COLLATE NOCASE"
-        ).fetchall()
+        ))
         return [r["player_name"] for r in rows]
     finally:
         conn.close()
