@@ -1,8 +1,8 @@
 """
-Cup Tracker -- Lambda Chi Alpha edition. Flask app for tracking average
-cups made per person across games of 55 (cup pong with 55 cups per side).
+Cup Tracker -- Flask app for tracking average cups made per person
+across games of 55 (cup pong with 55 cups per side).
 
-One brother logs an entire game at once, right after it happens: both
+One person logs an entire game at once, right after it happens: both
 teams' full rosters (2 to 5 players per side), each player's cups made,
 and which team won. The app aggregates every logged game into a
 leaderboard (average cups made per game, win rate, total games) plus a

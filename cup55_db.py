@@ -1,5 +1,5 @@
 """
-Storage layer for the Game of 55 cup tracker (Lambda Chi Alpha edition).
+Storage layer for the Game of 55 cup tracker.
 
 By default this uses a local SQLite file, which is fine for testing on
 your own computer but gets wiped whenever Render's free tier restarts or
@@ -121,6 +121,40 @@ def add_game(game_date, session_label, team_a_name, team_b_name, winner, logged_
                 )
         conn.commit()
         return game_id
+    finally:
+        conn.close()
+
+
+def update_game(game_id, requesting_name, game_date, session_label, team_a_name, team_b_name, winner,
+                 team_a_players, team_b_players):
+    """Only lets the person who originally logged a game edit it -- matched
+    by name, same rule as delete_game. Replaces the whole roster (simplest
+    way to handle players being added/removed/changed on an edit) but
+    keeps the original logged_by and created_at so ownership and history
+    order don't change."""
+    conn = _connect()
+    try:
+        row = _row_to_dict(conn.execute("SELECT logged_by FROM games WHERE id = ?", (game_id,)))
+        if row is None or (row["logged_by"] or "").strip().lower() != requesting_name.strip().lower():
+            return False
+        conn.execute(
+            """UPDATE games SET game_date = ?, session_label = ?, team_a_name = ?, team_b_name = ?, winner = ?
+               WHERE id = ?""",
+            (game_date, (session_label or "").strip() or None,
+             (team_a_name or "").strip() or None, (team_b_name or "").strip() or None,
+             winner, game_id),
+        )
+        conn.execute("DELETE FROM game_players WHERE game_id = ?", (game_id,))
+        for team, players in (("A", team_a_players), ("B", team_b_players)):
+            for name, cups, bitch_made, bitch_taken, drinks, fire in players:
+                conn.execute(
+                    """INSERT INTO game_players
+                       (game_id, team, player_name, cups_made, bitch_cups_made, bitch_cups_taken, drinks_taken, fire_count)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (game_id, team, name.strip(), cups, bitch_made, bitch_taken, drinks, fire),
+                )
+        conn.commit()
+        return True
     finally:
         conn.close()
 

@@ -1,8 +1,8 @@
-# Lambda Chi Alpha -- Game of 55 Tracker
+# Game of 55 Tracker
 
 A web app for tracking cups made across games of 55 (cup pong with 55
-cups on each side), themed for Lambda Chi Alpha. Whoever's phone is
-handy after a game logs the whole thing at once -- both teams' full
+cups on each side). Whoever's phone is handy after a game logs the
+whole thing at once -- both teams' full
 rosters (2v2 up to 5v5), everyone's cups made, and who won. The app
 turns that into a leaderboard (average cups per game, win rate) and a
 full game history.
@@ -65,7 +65,7 @@ address everyone can open.
    - Start Command: `python cup55_app.py`
    - Instance Type: **Free**
 4. Render gives you a public address like
-   `https://your-app-name.onrender.com`. Share that link -- each brother
+   `https://your-app-name.onrender.com`. Share that link -- everyone
    opens it on their own phone, saves their name once, and can log games
    from then on.
 
@@ -107,8 +107,9 @@ code first -- so even someone who stumbles on the URL sees nothing until
 they enter it -- set an environment variable on Render:
 
 1. On your Render service, go to **Environment** and add a variable
-   named `SITE_PASSCODE` with whatever code you want to use (e.g.
-   `goldenchi26`).
+   named `SITE_PASSCODE` with whatever code you want to use (pick
+   something that doesn't give away what the app is, since anyone who
+   sees it typed somewhere could guess what it unlocks).
 2. Save, then **Manual Deploy → Deploy latest commit**.
 
 That's it -- the app checks for this variable on startup. If it's set,
@@ -142,7 +143,7 @@ way the existing ones were.
 |---|---|
 | `cup55_app.py` | Flask backend: routes for logging games, leaderboard, history |
 | `cup55_db.py` | Storage layer -- one `games` row per game, one `game_players` row per player on either roster. Uses local SQLite by default, or Turso (permanent) if `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` are set |
-| `cup55_index.html` | The whole frontend -- name saver, log-a-game form with dynamic team rosters, leaderboard, history, Lambda Chi Alpha (purple/green/gold) styling |
+| `cup55_index.html` | The whole frontend -- name saver, log-a-game form with dynamic team rosters, leaderboard, history, plus the lock screen |
 | `cup55_requirements.txt` | Python dependencies (Flask + the `libsql` client for Turso) |
 
 ## Changing team size or max cups
