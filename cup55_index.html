@@ -305,6 +305,32 @@
 
   .empty-note { color: var(--text-muted); font-size: 13px; text-align: center; padding: 10px 0; }
 
+  .tab-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .tab-btn.active {
+    background: var(--purple);
+    color: #fff;
+    border-color: var(--purple);
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
   .saved-name-pill {
     display: inline-block;
     background: var(--gold-light);
@@ -356,6 +382,13 @@
 </header>
 
 <main>
+
+  <div class="tab-nav">
+    <button class="tab-btn active" id="tab-btn-games" onclick="switchTab('games')">Games</button>
+    <button class="tab-btn" id="tab-btn-matchups" onclick="switchTab('matchups')">Matchups</button>
+  </div>
+
+  <div id="tab-games" class="tab-content active">
 
   <div class="card">
     <h2>Who's logging this?</h2>
@@ -447,6 +480,41 @@
   </div>
 
   <div class="card">
+    <h2>History</h2>
+    <div id="history-list"></div>
+    <div class="empty-note" id="history-empty" style="display:none;">No games logged yet.</div>
+  </div>
+
+  <div class="card">
+    <h2>Team Size Projector</h2>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:0;">
+      Estimates what each person might average in a different team size,
+      based on how big a share of their own team's cups they typically make
+      compared to an even split, assuming the team clears the full 55-cup
+      rack. It's a rough projection, not a guarantee -- someone who's only
+      played 2v2 might play a little differently in a 4v4.
+    </p>
+    <label for="projector-size">Project onto</label>
+    <select id="projector-size" onchange="onProjectorSizeChange()">
+      <option value="2">2v2</option>
+      <option value="3">3v3</option>
+      <option value="4" selected>4v4</option>
+      <option value="5">5v5</option>
+    </select>
+    <table style="margin-top:12px;">
+      <thead>
+        <tr><th>Player</th><th>Projected avg cups</th><th>Games used</th></tr>
+      </thead>
+      <tbody id="projector-body"></tbody>
+    </table>
+    <div class="empty-note" id="projector-empty" style="display:none;">Not enough game data yet.</div>
+  </div>
+
+  </div>
+
+  <div id="tab-matchups" class="tab-content">
+
+  <div class="card">
     <h2>Best Duos</h2>
     <p style="font-size:12px;color:var(--text-muted);margin-top:0;">
       Every pair of players who've been on the same team together, and how
@@ -481,35 +549,6 @@
     <div id="h2h-result" style="margin-top:12px;"></div>
   </div>
 
-  <div class="card">
-    <h2>History</h2>
-    <div id="history-list"></div>
-    <div class="empty-note" id="history-empty" style="display:none;">No games logged yet.</div>
-  </div>
-
-  <div class="card">
-    <h2>Team Size Projector</h2>
-    <p style="font-size:12px;color:var(--text-muted);margin-top:0;">
-      Estimates what each person might average in a different team size,
-      based on how big a share of their own team's cups they typically make
-      compared to an even split, assuming the team clears the full 55-cup
-      rack. It's a rough projection, not a guarantee -- someone who's only
-      played 2v2 might play a little differently in a 4v4.
-    </p>
-    <label for="projector-size">Project onto</label>
-    <select id="projector-size" onchange="onProjectorSizeChange()">
-      <option value="2">2v2</option>
-      <option value="3">3v3</option>
-      <option value="4" selected>4v4</option>
-      <option value="5">5v5</option>
-    </select>
-    <table style="margin-top:12px;">
-      <thead>
-        <tr><th>Player</th><th>Projected avg cups</th><th>Games used</th></tr>
-      </thead>
-      <tbody id="projector-body"></tbody>
-    </table>
-    <div class="empty-note" id="projector-empty" style="display:none;">Not enough game data yet.</div>
   </div>
 
 </main>
@@ -565,6 +604,13 @@
       box.textContent = "Couldn't reach the server. Try again.";
       box.style.display = 'block';
     }
+  }
+
+  function switchTab(name) {
+    document.getElementById('tab-games').classList.toggle('active', name === 'games');
+    document.getElementById('tab-matchups').classList.toggle('active', name === 'matchups');
+    document.getElementById('tab-btn-games').classList.toggle('active', name === 'games');
+    document.getElementById('tab-btn-matchups').classList.toggle('active', name === 'matchups');
   }
 
   function myName() {
