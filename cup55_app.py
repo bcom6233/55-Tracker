@@ -16,6 +16,7 @@ automatically by the host and the app binds to 0.0.0.0 so it's reachable
 from outside (e.g. from everyone's phones), not just from one computer.
 """
 import hmac
+import itertools
 import os
 import secrets
 from datetime import date, timedelta
@@ -222,6 +223,12 @@ def api_players():
 def api_stats():
     games = db.all_games()
     by_player = {}
+    # name -> chronological list of (game_date, created_at, won) for decided games,
+    # used to compute win streaks below.
+    player_history = {}
+    # sorted-name-pair -> teammate record, used to compute Best Duos below.
+    duo_stats = {}
+
     for g in games:
         for team, roster in (("A", g["team_a_players"]), ("B", g["team_b_players"])):
             if g["winner"] is None:
@@ -259,6 +266,28 @@ def api_stats():
                 else:
                     stats["unrecorded_results"] += 1
 
+                if won is not None:
+                    player_history.setdefault(name, []).append(
+                        (g["game_date"], g["created_at"], won)
+                    )
+
+            # Best Duos: every pair of players who shared this roster (works for
+            # 2v2 through 5v5 -- a 3-person team credits all 3 pairs within it).
+            for p1, p2 in itertools.combinations(roster, 2):
+                key = tuple(sorted([p1["player_name"].lower(), p2["player_name"].lower()]))
+                duo = duo_stats.setdefault(key, {
+                    "player_a": p1["player_name"],
+                    "player_b": p2["player_name"],
+                    "games_together": 0,
+                    "wins_together": 0,
+                    "losses_together": 0,
+                })
+                duo["games_together"] += 1
+                if won is True:
+                    duo["wins_together"] += 1
+                elif won is False:
+                    duo["losses_together"] += 1
+
     leaderboard = []
     for stats in by_player.values():
         games_played = stats["games_played"]
@@ -268,6 +297,26 @@ def api_stats():
         avg_drinks = round(stats["total_drinks"] / games_played, 2) if games_played else 0
         decided = stats["wins"] + stats["losses"]
         win_rate = round(stats["wins"] / decided * 100, 1) if decided else None
+
+        # Win streaks: only decided (winner recorded) games count, in
+        # chronological order. Current streak = consecutive wins ending on
+        # the player's most recent decided game. Longest streak = the best
+        # run of consecutive wins anywhere in their history.
+        history = sorted(player_history.get(stats["player_name"], []), key=lambda t: (t[0], t[1]))
+        current_streak = 0
+        for _, _, won in reversed(history):
+            if not won:
+                break
+            current_streak += 1
+        longest_streak = 0
+        running = 0
+        for _, _, won in history:
+            if won:
+                running += 1
+                longest_streak = max(longest_streak, running)
+            else:
+                running = 0
+
         leaderboard.append({
             **stats,
             "avg_cups": avg_cups,
@@ -275,11 +324,22 @@ def api_stats():
             "avg_bitch_cups_taken": avg_bitch_cups_taken,
             "avg_drinks": avg_drinks,
             "win_rate": win_rate,
+            "current_streak": current_streak,
+            "longest_streak": longest_streak,
         })
 
     leaderboard.sort(key=lambda s: (-s["avg_cups"], -s["games_played"]))
+
+    duos = []
+    for duo in duo_stats.values():
+        decided = duo["wins_together"] + duo["losses_together"]
+        win_rate_together = round(duo["wins_together"] / decided * 100, 1) if decided else None
+        duos.append({**duo, "win_rate_together": win_rate_together})
+    duos.sort(key=lambda d: (-(d["win_rate_together"] if d["win_rate_together"] is not None else -1), -d["games_together"]))
+
     return jsonify({
         "leaderboard": leaderboard,
+        "duos": duos,
         "max_cups": MAX_CUPS,
         "min_team_size": MIN_TEAM_SIZE,
         "max_team_size": MAX_TEAM_SIZE,

@@ -428,7 +428,7 @@
     <h2>Leaderboard</h2>
     <table>
       <thead>
-        <tr><th>Player</th><th>Avg cups</th><th>Games</th><th>Win %</th></tr>
+        <tr><th>Player</th><th>Avg cups</th><th>Games</th><th>Win %</th><th>Streak</th></tr>
       </thead>
       <tbody id="leaderboard-body"></tbody>
     </table>
@@ -439,11 +439,46 @@
     <h2>Fun Stats</h2>
     <table>
       <thead>
-        <tr><th>Player</th><th>Bitch cups/game</th><th>Drinks/game</th><th>Fires (total)</th><th>Last cups (total)</th></tr>
+        <tr><th>Player</th><th>Bitch cups/game</th><th>Drinks/game</th><th>Fires (total)</th><th>Last cups (total)</th><th>Best streak</th></tr>
       </thead>
       <tbody id="funstats-body"></tbody>
     </table>
     <div class="empty-note" id="funstats-empty" style="display:none;">No games logged yet.</div>
+  </div>
+
+  <div class="card">
+    <h2>Best Duos</h2>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:0;">
+      Every pair of players who've been on the same team together, and how
+      often that pairing wins.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Duo</th><th>Games together</th><th>Win %</th></tr>
+      </thead>
+      <tbody id="duos-body"></tbody>
+    </table>
+    <div class="empty-note" id="duos-empty" style="display:none;">No games logged yet.</div>
+  </div>
+
+  <div class="card">
+    <h2>Head-to-Head</h2>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:0;">
+      Pick two players to see their record against each other, from every
+      game where they've been on opposite teams.
+    </p>
+    <div class="row-inline">
+      <div>
+        <label for="h2h-player-a">Player A</label>
+        <select id="h2h-player-a"><option value="">Pick a player</option></select>
+      </div>
+      <div>
+        <label for="h2h-player-b">Player B</label>
+        <select id="h2h-player-b"><option value="">Pick a player</option></select>
+      </div>
+    </div>
+    <button class="btn-secondary" style="margin-top:10px;" onclick="computeHeadToHead()">Compare</button>
+    <div id="h2h-result" style="margin-top:12px;"></div>
   </div>
 
   <div class="card">
@@ -840,6 +875,7 @@
           <td>${p.avg_cups}</td>
           <td>${p.games_played}</td>
           <td>${p.win_rate === null ? '--' : p.win_rate + '%'}</td>
+          <td>${p.current_streak > 0 ? '&#128293;' + p.current_streak : '-'}</td>
         </tr>
       `).join('');
     }
@@ -859,12 +895,43 @@
           <td>${p.avg_drinks}</td>
           <td>${p.total_fires}</td>
           <td>${p.total_last_cups}</td>
+          <td>${p.longest_streak}</td>
         </tr>
       `).join('');
     }
+
+    renderDuos(data.duos || []);
   }
 
-  function teamHtml(game, side) {
+  function renderDuos(duos) {
+    const body = document.getElementById('duos-body');
+    const empty = document.getElementById('duos-empty');
+    if (duos.length === 0) {
+      body.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    body.innerHTML = duos.map(d => `
+      <tr>
+        <td>${escapeHtml(d.player_a)} &amp; ${escapeHtml(d.player_b)}</td>
+        <td>${d.games_together}</td>
+        <td>${d.win_rate_together === null ? '--' : d.win_rate_together + '%'}</td>
+      </tr>
+    `).join('');
+  }
+
+  // MVP: whoever made the most cups in a game, across both teams combined.
+  // Ties (including a 0-0 game where nobody scored) get no badge, or all
+  // get one if they're tied at the actual top score.
+  function computeMvp(game) {
+    const all = [...game.team_a_players, ...game.team_b_players];
+    const max = all.reduce((m, p) => Math.max(m, p.cups_made), 0);
+    if (max <= 0) return [];
+    return all.filter(p => p.cups_made === max).map(p => p.player_name);
+  }
+
+  function teamHtml(game, side, mvpNames) {
     const players = side === 'A' ? game.team_a_players : game.team_b_players;
     const name = side === 'A' ? (game.team_a_name || 'Team A') : (game.team_b_name || 'Team B');
     const isWinner = game.winner === side;
@@ -874,7 +941,7 @@
         <div class="history-team-name">${escapeHtml(name)} ${isWinner ? '&#127942;' : ''}</div>
         ${players.map(p => `
           <div class="history-player">
-            <span>${escapeHtml(p.player_name)}</span>
+            <span>${escapeHtml(p.player_name)}${mvpNames.includes(p.player_name) ? ' &#11088;' : ''}</span>
             <span>${p.cups_made} cups</span>
           </div>
           ${extraStatsLine(p)}
@@ -906,26 +973,31 @@
     } else {
       empty.style.display = 'none';
       const name = myName();
-      list.innerHTML = lastGames.map(g => `
+      list.innerHTML = lastGames.map(g => {
+        const mvpNames = computeMvp(g);
+        return `
         <div class="history-item">
           <div class="meta">
             <span>${escapeHtml(g.session_label || fmtDate(g.game_date))}</span>
             <span>${fmtDate(g.game_date)}</span>
           </div>
           <div class="history-teams">
-            ${teamHtml(g, 'A')}
-            ${teamHtml(g, 'B')}
+            ${teamHtml(g, 'A', mvpNames)}
+            ${teamHtml(g, 'B', mvpNames)}
           </div>
-          ${g.last_cup_player ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">&#127942; Last cup: ${escapeHtml(g.last_cup_player)}</div>` : ''}
+          ${mvpNames.length ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">&#11088; MVP: ${mvpNames.map(escapeHtml).join(', ')}</div>` : ''}
+          ${g.last_cup_player ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">&#127942; Last cup: ${escapeHtml(g.last_cup_player)}</div>` : ''}
           ${g.logged_by && g.logged_by === name ? `
             <div class="history-actions">
               <button class="btn-small" onclick="startEditGame(${g.id})">Edit</button>
               <button class="btn-small" onclick="deleteGame(${g.id})">Delete</button>
             </div>` : ''}
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
     renderProjector(projectorSize);
+    computeHeadToHead();
   }
 
   // For each game a player's in, work out what share of their own team's
@@ -990,8 +1062,79 @@
     const res = await apiFetch('/api/players');
     if (!res) return;
     const data = await res.json();
+    const names = data.players || [];
     const datalist = document.getElementById('player-list');
-    datalist.innerHTML = (data.players || []).map(p => `<option value="${escapeHtml(p)}">`).join('');
+    datalist.innerHTML = names.map(p => `<option value="${escapeHtml(p)}">`).join('');
+
+    const optionsHtml = '<option value="">Pick a player</option>'
+      + names.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+    const selA = document.getElementById('h2h-player-a');
+    const selB = document.getElementById('h2h-player-b');
+    const curA = selA.value, curB = selB.value;
+    selA.innerHTML = optionsHtml;
+    selB.innerHTML = optionsHtml;
+    if (names.includes(curA)) selA.value = curA;
+    if (names.includes(curB)) selB.value = curB;
+  }
+
+  // Head-to-head: games where the two chosen players were on opposite
+  // teams (any team size). Each such game counts as one "matchup"; the
+  // side that won the game is credited a win against the other player.
+  function computeHeadToHead() {
+    const result = document.getElementById('h2h-result');
+    if (!result) return;
+    const nameA = document.getElementById('h2h-player-a').value;
+    const nameB = document.getElementById('h2h-player-b').value;
+    if (!nameA || !nameB) {
+      result.innerHTML = '<div class="empty-note">Pick two players to compare.</div>';
+      return;
+    }
+    if (nameA.toLowerCase() === nameB.toLowerCase()) {
+      result.innerHTML = '<div class="empty-note">Pick two different players.</div>';
+      return;
+    }
+
+    const onRoster = (roster, name) => roster.some(p => p.player_name.toLowerCase() === name.toLowerCase());
+
+    let winsA = 0, winsB = 0, undecided = 0;
+    const matches = [];
+    for (const g of lastGames) {
+      let sideA = null, sideB = null;
+      if (onRoster(g.team_a_players, nameA)) sideA = 'A';
+      else if (onRoster(g.team_b_players, nameA)) sideA = 'B';
+      if (onRoster(g.team_a_players, nameB)) sideB = 'A';
+      else if (onRoster(g.team_b_players, nameB)) sideB = 'B';
+
+      if (!sideA || !sideB || sideA === sideB) continue; // not opponents this game
+
+      matches.push(g);
+      if (g.winner === sideA) winsA += 1;
+      else if (g.winner === sideB) winsB += 1;
+      else undecided += 1;
+    }
+
+    if (matches.length === 0) {
+      result.innerHTML = `<div class="empty-note">${escapeHtml(nameA)} and ${escapeHtml(nameB)} haven't played on opposite teams yet.</div>`;
+      return;
+    }
+
+    // lastGames is already newest-first, so matches stays in that order.
+    result.innerHTML = `
+      <div style="font-weight:700;margin-bottom:6px;">
+        ${escapeHtml(nameA)} ${winsA} &ndash; ${winsB} ${escapeHtml(nameB)}${undecided ? ` (${undecided} undecided)` : ''}
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">
+        ${matches.length} game${matches.length === 1 ? '' : 's'} played against each other
+      </div>
+      ${matches.map(g => `
+        <div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border);">
+          ${fmtDate(g.game_date)} &mdash;
+          ${escapeHtml(g.team_a_name || 'Team A')} ${g.team_a_players.reduce((s, p) => s + p.cups_made, 0)}
+          -
+          ${g.team_b_players.reduce((s, p) => s + p.cups_made, 0)} ${escapeHtml(g.team_b_name || 'Team B')}
+        </div>
+      `).join('')}
+    `;
   }
 
   function initApp() {

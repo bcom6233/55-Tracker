@@ -38,6 +38,19 @@ full game history.
   automatically filled with whoever's currently in the rosters -- no
   typing, no mismatched names. Shows up in that game's history entry and
   counts toward a player's total on the Fun Stats table.
+- **MVP badge**: whoever made the most cups in a game (across both teams)
+  gets a star next to their name in that game's history entry. Ties get a
+  star each.
+- **Win streaks**: the Leaderboard shows each player's current win
+  streak, and Fun Stats shows their longest streak ever -- both only
+  count games with a recorded winner.
+- **Best Duos**: every pair of players who've shared a team at least once
+  gets tracked -- how many games they've played together and how often
+  that pairing wins. On a 3+ person team, every pair on that roster gets
+  credit (e.g. a 3v3 game credits all 3 pairings on each side).
+- **Head-to-Head**: pick any two players and see their record against
+  each other -- every game where they were on opposite teams, with the
+  win/loss tally and a list of those specific games.
 
 ## Running it locally
 
