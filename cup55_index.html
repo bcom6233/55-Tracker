@@ -517,8 +517,8 @@
   <div class="card">
     <h2>Best Duos</h2>
     <p style="font-size:12px;color:var(--text-muted);margin-top:0;">
-      Every pair of players who've been on the same team together, and how
-      often that pairing wins.
+      The top 5 pairs of players who've been on the same team together,
+      ranked by how often that pairing wins.
     </p>
     <table>
       <thead>
@@ -958,7 +958,9 @@
       return;
     }
     empty.style.display = 'none';
-    body.innerHTML = duos.map(d => `
+    // duos is already sorted best-win-rate-first by the server; only show
+    // the top 5 so this doesn't turn into a huge list as more games get logged.
+    body.innerHTML = duos.slice(0, 5).map(d => `
       <tr>
         <td>${escapeHtml(d.player_a)} &amp; ${escapeHtml(d.player_b)}</td>
         <td>${d.games_together}</td>
