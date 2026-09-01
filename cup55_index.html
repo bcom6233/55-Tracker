@@ -386,6 +386,7 @@
   <div class="tab-nav">
     <button class="tab-btn active" id="tab-btn-games" onclick="switchTab('games')">Games</button>
     <button class="tab-btn" id="tab-btn-matchups" onclick="switchTab('matchups')">Matchups</button>
+    <button class="tab-btn" id="tab-btn-odds" onclick="switchTab('odds')">Odds</button>
   </div>
 
   <div id="tab-games" class="tab-content active">
@@ -551,6 +552,50 @@
 
   </div>
 
+  <div id="tab-odds" class="tab-content">
+
+  <div class="card">
+    <h2>Odds</h2>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:0;">
+      Not real money -- just a fun way to set a friendly bet before you play.
+      Pick 2 to 5 players per side (they don't have to be who actually
+      ends up playing), then hit Get Odds.
+    </p>
+    <div class="row-inline">
+      <div>
+        <label for="odds-team-a">Team A (2-5 players)</label>
+        <select id="odds-team-a" multiple size="6"></select>
+      </div>
+      <div>
+        <label for="odds-team-b">Team B (2-5 players)</label>
+        <select id="odds-team-b" multiple size="6"></select>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="computeAndRenderOdds()">Get Odds</button>
+    <div class="error-box" id="odds-error-box"></div>
+  </div>
+
+  <div class="card" id="odds-team-card" style="display:none;">
+    <h2>Team Odds</h2>
+    <div id="odds-team-result"></div>
+  </div>
+
+  <div class="card" id="odds-props-card" style="display:none;">
+    <h2>Player Props</h2>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:0;">
+      Over/under lines based on each player's career average. Standard
+      -110/-110 juice on both sides, just for the vibe.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Player</th><th>Cups O/U</th><th>Bitch cups O/U</th><th>Drinks O/U</th></tr>
+      </thead>
+      <tbody id="odds-props-body"></tbody>
+    </table>
+  </div>
+
+  </div>
+
 </main>
 
 <script>
@@ -561,6 +606,7 @@
   let teamRows = { a: [], b: [] }; // each entry: {name: '', cups: ''}
   let winnerValue = null; // 'A' | 'B' | null
   let lastGames = [];
+  let lastLeaderboard = [];
   let projectorSize = 4;
   let editingGameId = null;
 
@@ -607,10 +653,10 @@
   }
 
   function switchTab(name) {
-    document.getElementById('tab-games').classList.toggle('active', name === 'games');
-    document.getElementById('tab-matchups').classList.toggle('active', name === 'matchups');
-    document.getElementById('tab-btn-games').classList.toggle('active', name === 'games');
-    document.getElementById('tab-btn-matchups').classList.toggle('active', name === 'matchups');
+    for (const t of ['games', 'matchups', 'odds']) {
+      document.getElementById('tab-' + t).classList.toggle('active', t === name);
+      document.getElementById('tab-btn-' + t).classList.toggle('active', t === name);
+    }
   }
 
   function myName() {
@@ -907,6 +953,7 @@
     const data = await res.json();
     MAX_CUPS = data.max_cups || 55;
     const rows = data.leaderboard || [];
+    lastLeaderboard = rows;
 
     const body = document.getElementById('leaderboard-body');
     const empty = document.getElementById('leaderboard-empty');
@@ -1052,10 +1099,10 @@
   // total cups they made that game, then normalize by team size so a
   // player who got exactly an even split scores 1.0 regardless of
   // whether it was 2v2 or 5v5. Averaging that "skill factor" across a
-  // player's games gives a team-size-independent measure, which can be
-  // re-projected onto any team size by dividing by the new size and
-  // assuming the team clears the full cup rack.
-  function computeProjections(targetSize) {
+  // player's games gives a team-size-independent measure -- used both to
+  // project onto a different team size (below) and, in the Odds tab, as
+  // half of a hypothetical matchup's team rating.
+  function computePlayerSkillFactors() {
     const byPlayer = {};
     for (const g of lastGames) {
       for (const roster of [g.team_a_players, g.team_b_players]) {
@@ -1071,11 +1118,19 @@
         }
       }
     }
-    const rows = Object.keys(byPlayer).map(name => {
-      const { total, count } = byPlayer[name];
-      const skillFactor = total / count;
-      const projected = (skillFactor / targetSize) * MAX_CUPS;
-      return { player_name: name, games_used: count, projected: Math.round(projected * 10) / 10 };
+    const result = {};
+    for (const name in byPlayer) {
+      result[name] = { factor: byPlayer[name].total / byPlayer[name].count, games: byPlayer[name].count };
+    }
+    return result;
+  }
+
+  function computeProjections(targetSize) {
+    const factors = computePlayerSkillFactors();
+    const rows = Object.keys(factors).map(name => {
+      const { factor, games } = factors[name];
+      const projected = (factor / targetSize) * MAX_CUPS;
+      return { player_name: name, games_used: games, projected: Math.round(projected * 10) / 10 };
     });
     rows.sort((a, b) => b.projected - a.projected);
     return rows;
@@ -1123,6 +1178,120 @@
     selB.innerHTML = optionsHtml;
     if (names.includes(curA)) selA.value = curA;
     if (names.includes(curB)) selB.value = curB;
+
+    const plainOptionsHtml = names.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+    const oddsA = document.getElementById('odds-team-a');
+    const oddsB = document.getElementById('odds-team-b');
+    const selectedA = Array.from(oddsA.selectedOptions).map(o => o.value);
+    const selectedB = Array.from(oddsB.selectedOptions).map(o => o.value);
+    oddsA.innerHTML = plainOptionsHtml;
+    oddsB.innerHTML = plainOptionsHtml;
+    for (const o of oddsA.options) if (selectedA.includes(o.value)) o.selected = true;
+    for (const o of oddsB.options) if (selectedB.includes(o.value)) o.selected = true;
+  }
+
+  // Team win odds: each player gets a rating that's an even blend of their
+  // team-size-independent "skill factor" (offense, see computePlayerSkillFactors
+  // above) and their overall win rate rescaled onto the same 1.0-is-average
+  // scale. A team's rating is the average of its players' ratings, and win
+  // probability is just each team's share of the combined rating -- simple,
+  // but keeps favorites/underdogs sane and symmetric. Players with no game
+  // history default to a perfectly average rating of 1.0.
+  function computeTeamRating(names, skillFactors) {
+    if (names.length === 0) return 1;
+    let sum = 0;
+    for (const name of names) {
+      const skill = skillFactors[name] ? skillFactors[name].factor : 1;
+      const lb = lastLeaderboard.find(p => p.player_name === name);
+      let rating = skill;
+      if (lb && lb.win_rate !== null && lb.win_rate !== undefined) {
+        rating = 0.5 * skill + 0.5 * (lb.win_rate / 50);
+      }
+      sum += rating;
+    }
+    return sum / names.length;
+  }
+
+  function probToAmericanOdds(p) {
+    const clamped = Math.min(0.95, Math.max(0.05, p));
+    if (clamped >= 0.5) return Math.round(-100 * clamped / (1 - clamped));
+    return Math.round(100 * (1 - clamped) / clamped);
+  }
+
+  function fmtAmerican(n) {
+    return n > 0 ? ('+' + n) : String(n);
+  }
+
+  // Prop lines land on a .5 just above the player's average so a bet can
+  // never push (tie) -- the same reason real sportsbooks avoid whole numbers.
+  function toHalfLine(avg) {
+    return Math.max(0.5, Math.floor(avg) + 0.5);
+  }
+
+  function computeAndRenderOdds() {
+    const errBox = document.getElementById('odds-error-box');
+    errBox.style.display = 'none';
+    const teamCard = document.getElementById('odds-team-card');
+    const propsCard = document.getElementById('odds-props-card');
+
+    const teamA = Array.from(document.getElementById('odds-team-a').selectedOptions).map(o => o.value);
+    const teamB = Array.from(document.getElementById('odds-team-b').selectedOptions).map(o => o.value);
+
+    if (teamA.length < 2 || teamA.length > 5 || teamB.length < 2 || teamB.length > 5) {
+      errBox.textContent = 'Pick 2 to 5 players for each team.';
+      errBox.style.display = 'block';
+      teamCard.style.display = 'none';
+      propsCard.style.display = 'none';
+      return;
+    }
+    const overlap = teamA.filter(n => teamB.includes(n));
+    if (overlap.length > 0) {
+      errBox.textContent = `${overlap.join(', ')} can't be on both teams.`;
+      errBox.style.display = 'block';
+      teamCard.style.display = 'none';
+      propsCard.style.display = 'none';
+      return;
+    }
+
+    const skillFactors = computePlayerSkillFactors();
+    const ratingA = computeTeamRating(teamA, skillFactors);
+    const ratingB = computeTeamRating(teamB, skillFactors);
+    const probA = ratingA / (ratingA + ratingB);
+    const probB = 1 - probA;
+
+    teamCard.style.display = 'block';
+    document.getElementById('odds-team-result').innerHTML = `
+      <div class="history-teams">
+        <div class="history-team side-a" style="color:var(--green-dark);">
+          <div class="history-team-name">Team A</div>
+          <div style="font-size:12px;">${teamA.map(escapeHtml).join(', ')}</div>
+          <div style="font-size:20px;font-weight:800;margin-top:6px;">${fmtAmerican(probToAmericanOdds(probA))}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${Math.round(probA * 100)}% implied</div>
+        </div>
+        <div class="history-team side-b" style="color:#8A6B00;">
+          <div class="history-team-name">Team B</div>
+          <div style="font-size:12px;">${teamB.map(escapeHtml).join(', ')}</div>
+          <div style="font-size:20px;font-weight:800;margin-top:6px;">${fmtAmerican(probToAmericanOdds(probB))}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${Math.round(probB * 100)}% implied</div>
+        </div>
+      </div>
+    `;
+
+    propsCard.style.display = 'block';
+    document.getElementById('odds-props-body').innerHTML = [...teamA, ...teamB].map(name => {
+      const lb = lastLeaderboard.find(p => p.player_name === name);
+      if (!lb || !lb.games_played) {
+        return `<tr><td>${escapeHtml(name)}</td><td colspan="3" style="color:var(--text-muted);">Not enough data yet</td></tr>`;
+      }
+      return `
+        <tr>
+          <td>${escapeHtml(name)}</td>
+          <td>O/U ${toHalfLine(lb.avg_cups)} (-110/-110)</td>
+          <td>O/U ${toHalfLine(lb.avg_bitch_cups_made)} (-110/-110)</td>
+          <td>O/U ${toHalfLine(lb.avg_drinks)} (-110/-110)</td>
+        </tr>
+      `;
+    }).join('');
   }
 
   // Head-to-head: games where the two chosen players were on opposite

@@ -51,6 +51,13 @@ full game history.
 - **Head-to-Head**: pick any two players and see their record against
   each other -- every game where they were on opposite teams, with the
   win/loss tally and a list of those specific games.
+- **Odds**: a just-for-fun tab (not real money) where you pick 2 to 5
+  players for each side and get a moneyline for who's favored, plus
+  over/under prop lines for each player's cups, bitch cups, and drinks,
+  all based on their career averages.
+- The page is split into three tabs so it doesn't get too long: **Games**
+  (logging, Leaderboard, Fun Stats, History, Team Size Projector),
+  **Matchups** (Best Duos, Head-to-Head), and **Odds**.
 
 ## Running it locally
 
