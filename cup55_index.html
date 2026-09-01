@@ -331,6 +331,38 @@
   .tab-content { display: none; }
   .tab-content.active { display: block; }
 
+  .player-checkbox-list {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 8px;
+    max-height: 190px;
+    overflow-y: auto;
+    background: #FBFAFD;
+  }
+
+  .player-checkbox-list label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text);
+    text-transform: none;
+    margin: 0;
+    padding: 8px 2px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .player-checkbox-list label:last-child { border-bottom: none; }
+
+  .player-checkbox-list input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    flex: none;
+  }
+
+  .player-checkbox-list .empty-note { padding: 6px 2px; text-align: left; }
+
   .saved-name-pill {
     display: inline-block;
     background: var(--gold-light);
@@ -563,12 +595,12 @@
     </p>
     <div class="row-inline">
       <div>
-        <label for="odds-team-a">Team A (2-5 players)</label>
-        <select id="odds-team-a" multiple size="6"></select>
+        <label>Team A (2-5 players)</label>
+        <div class="player-checkbox-list" id="odds-team-a"></div>
       </div>
       <div>
-        <label for="odds-team-b">Team B (2-5 players)</label>
-        <select id="odds-team-b" multiple size="6"></select>
+        <label>Team B (2-5 players)</label>
+        <div class="player-checkbox-list" id="odds-team-b"></div>
       </div>
     </div>
     <button class="btn-primary" onclick="computeAndRenderOdds()">Get Odds</button>
@@ -609,6 +641,8 @@
   let lastLeaderboard = [];
   let projectorSize = 4;
   let editingGameId = null;
+  let allPlayerNames = [];
+  let oddsSelected = { a: new Set(), b: new Set() }; // player names picked for the Odds tab
 
   async function apiFetch(url, opts) {
     const res = await fetch(url, opts);
@@ -1179,15 +1213,48 @@
     if (names.includes(curA)) selA.value = curA;
     if (names.includes(curB)) selB.value = curB;
 
-    const plainOptionsHtml = names.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
-    const oddsA = document.getElementById('odds-team-a');
-    const oddsB = document.getElementById('odds-team-b');
-    const selectedA = Array.from(oddsA.selectedOptions).map(o => o.value);
-    const selectedB = Array.from(oddsB.selectedOptions).map(o => o.value);
-    oddsA.innerHTML = plainOptionsHtml;
-    oddsB.innerHTML = plainOptionsHtml;
-    for (const o of oddsA.options) if (selectedA.includes(o.value)) o.selected = true;
-    for (const o of oddsB.options) if (selectedB.includes(o.value)) o.selected = true;
+    allPlayerNames = names;
+    // Drop anyone from the Odds picks who no longer shows up in the player list.
+    for (const set of [oddsSelected.a, oddsSelected.b]) {
+      for (const n of Array.from(set)) if (!names.includes(n)) set.delete(n);
+    }
+    renderOddsCheckboxLists();
+  }
+
+  // Tappable checkbox list for picking Odds-tab rosters -- a native
+  // <select multiple> needs ctrl/cmd-click, which doesn't work on a phone,
+  // so this is a plain checkbox list instead. Whichever team a player is
+  // checked into, their checkbox is disabled (greyed out) on the other
+  // team's list so they can't accidentally end up on both.
+  function renderOddsCheckboxLists() {
+    renderOddsCheckboxList('a', oddsSelected.a, oddsSelected.b);
+    renderOddsCheckboxList('b', oddsSelected.b, oddsSelected.a);
+  }
+
+  function renderOddsCheckboxList(team, selectedSet, otherSet) {
+    const container = document.getElementById(`odds-team-${team}`);
+    if (allPlayerNames.length === 0) {
+      container.innerHTML = '<div class="empty-note">No players logged yet.</div>';
+      return;
+    }
+    container.innerHTML = allPlayerNames.map(name => {
+      const checked = selectedSet.has(name);
+      const disabled = !checked && otherSet.has(name);
+      return `
+        <label style="${disabled ? 'opacity:0.4;' : ''}">
+          <input type="checkbox" value="${escapeHtml(name)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}
+                 onchange="toggleOddsPlayer('${team}', this)">
+          ${escapeHtml(name)}
+        </label>
+      `;
+    }).join('');
+  }
+
+  function toggleOddsPlayer(team, checkbox) {
+    const set = team === 'a' ? oddsSelected.a : oddsSelected.b;
+    if (checkbox.checked) set.add(checkbox.value);
+    else set.delete(checkbox.value);
+    renderOddsCheckboxLists();
   }
 
   // Team win odds: each player gets a rating that's an even blend of their
@@ -1234,8 +1301,8 @@
     const teamCard = document.getElementById('odds-team-card');
     const propsCard = document.getElementById('odds-props-card');
 
-    const teamA = Array.from(document.getElementById('odds-team-a').selectedOptions).map(o => o.value);
-    const teamB = Array.from(document.getElementById('odds-team-b').selectedOptions).map(o => o.value);
+    const teamA = Array.from(oddsSelected.a);
+    const teamB = Array.from(oddsSelected.b);
 
     if (teamA.length < 2 || teamA.length > 5 || teamB.length < 2 || teamB.length > 5) {
       errBox.textContent = 'Pick 2 to 5 players for each team.';
@@ -1244,6 +1311,9 @@
       propsCard.style.display = 'none';
       return;
     }
+    // The checkbox lists already disable a player on one side once they're
+    // checked on the other, but double-check here too in case state ever
+    // drifts (e.g. the player list refreshed mid-pick).
     const overlap = teamA.filter(n => teamB.includes(n));
     if (overlap.length > 0) {
       errBox.textContent = `${overlap.join(', ')} can't be on both teams.`;
