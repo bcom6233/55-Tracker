@@ -597,12 +597,26 @@
       <div>
         <label>Team A (2-5 players)</label>
         <div class="player-checkbox-list" id="odds-team-a"></div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <input type="text" id="odds-new-a" placeholder="Someone not listed?"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addOddsPlayer('a');}">
+          <button type="button" class="btn-small" style="flex:none;" onclick="addOddsPlayer('a')">Add</button>
+        </div>
       </div>
       <div>
         <label>Team B (2-5 players)</label>
         <div class="player-checkbox-list" id="odds-team-b"></div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <input type="text" id="odds-new-b" placeholder="Someone not listed?"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addOddsPlayer('b');}">
+          <button type="button" class="btn-small" style="flex:none;" onclick="addOddsPlayer('b')">Add</button>
+        </div>
       </div>
     </div>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">
+      Nobody logged yet? Type their name and add them -- they'll get
+      average odds and props until they've actually played a game.
+    </p>
     <button class="btn-primary" onclick="computeAndRenderOdds()">Get Odds</button>
     <div class="error-box" id="odds-error-box"></div>
   </div>
@@ -643,6 +657,7 @@
   let editingGameId = null;
   let allPlayerNames = [];
   let oddsSelected = { a: new Set(), b: new Set() }; // player names picked for the Odds tab
+  let oddsExtraNames = new Set(); // manually-added names with no logged games yet
 
   async function apiFetch(url, opts) {
     const res = await fetch(url, opts);
@@ -1214,9 +1229,13 @@
     if (names.includes(curB)) selB.value = curB;
 
     allPlayerNames = names;
-    // Drop anyone from the Odds picks who no longer shows up in the player list.
+    // Drop anyone from the Odds picks who no longer shows up in the player
+    // list AND wasn't manually added (manually-added names never appear in
+    // the server's player list until they've actually logged a game).
     for (const set of [oddsSelected.a, oddsSelected.b]) {
-      for (const n of Array.from(set)) if (!names.includes(n)) set.delete(n);
+      for (const n of Array.from(set)) {
+        if (!names.includes(n) && !oddsExtraNames.has(n)) set.delete(n);
+      }
     }
     renderOddsCheckboxLists();
   }
@@ -1225,7 +1244,10 @@
   // <select multiple> needs ctrl/cmd-click, which doesn't work on a phone,
   // so this is a plain checkbox list instead. Whichever team a player is
   // checked into, their checkbox is disabled (greyed out) on the other
-  // team's list so they can't accidentally end up on both.
+  // team's list so they can't accidentally end up on both. The list is
+  // everyone who's ever logged a game, plus anyone manually added via the
+  // "Someone not listed?" box (labeled "no games yet" since they won't
+  // have any stats to base odds/props on).
   function renderOddsCheckboxLists() {
     renderOddsCheckboxList('a', oddsSelected.a, oddsSelected.b);
     renderOddsCheckboxList('b', oddsSelected.b, oddsSelected.a);
@@ -1233,18 +1255,20 @@
 
   function renderOddsCheckboxList(team, selectedSet, otherSet) {
     const container = document.getElementById(`odds-team-${team}`);
-    if (allPlayerNames.length === 0) {
-      container.innerHTML = '<div class="empty-note">No players logged yet.</div>';
+    const names = Array.from(new Set([...allPlayerNames, ...oddsExtraNames])).sort((a, b) => a.localeCompare(b));
+    if (names.length === 0) {
+      container.innerHTML = '<div class="empty-note">No players yet -- add one below.</div>';
       return;
     }
-    container.innerHTML = allPlayerNames.map(name => {
+    container.innerHTML = names.map(name => {
       const checked = selectedSet.has(name);
       const disabled = !checked && otherSet.has(name);
+      const noRecord = !allPlayerNames.includes(name);
       return `
         <label style="${disabled ? 'opacity:0.4;' : ''}">
           <input type="checkbox" value="${escapeHtml(name)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}
                  onchange="toggleOddsPlayer('${team}', this)">
-          ${escapeHtml(name)}
+          ${escapeHtml(name)}${noRecord ? ' <span style="color:var(--text-muted);font-size:11px;">(no games yet)</span>' : ''}
         </label>
       `;
     }).join('');
@@ -1254,6 +1278,28 @@
     const set = team === 'a' ? oddsSelected.a : oddsSelected.b;
     if (checkbox.checked) set.add(checkbox.value);
     else set.delete(checkbox.value);
+    renderOddsCheckboxLists();
+  }
+
+  // Lets someone who hasn't logged a game yet still get picked for a
+  // hypothetical matchup -- they just show up as "no games yet" and get
+  // treated as perfectly average until they actually play (see
+  // computeTeamRating and the Player Props fallback below).
+  function addOddsPlayer(team) {
+    const input = document.getElementById(`odds-new-${team}`);
+    let name = input.value.trim();
+    if (!name) return;
+
+    const known = [...allPlayerNames, ...oddsExtraNames];
+    const existing = known.find(n => n.toLowerCase() === name.toLowerCase());
+    if (existing) name = existing;
+    else oddsExtraNames.add(name);
+
+    const otherSet = team === 'a' ? oddsSelected.b : oddsSelected.a;
+    if (!otherSet.has(name)) {
+      (team === 'a' ? oddsSelected.a : oddsSelected.b).add(name);
+    }
+    input.value = '';
     renderOddsCheckboxLists();
   }
 
