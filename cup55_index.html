@@ -630,7 +630,7 @@
     </p>
     <table>
       <thead>
-        <tr><th>Player</th><th>Cups O/U</th><th>Bitch cups drank O/U</th></tr>
+        <tr><th>Player</th><th>Cups O/U</th><th>Bitch cups drank O/U</th><th>Fire O/U</th></tr>
       </thead>
       <tbody id="odds-props-body"></tbody>
     </table>
@@ -1382,13 +1382,15 @@
     document.getElementById('odds-props-body').innerHTML = [...teamA, ...teamB].map(name => {
       const lb = lastLeaderboard.find(p => p.player_name === name);
       if (!lb || !lb.games_played) {
-        return `<tr><td>${escapeHtml(name)}</td><td colspan="2" style="color:var(--text-muted);">Not enough data yet</td></tr>`;
+        return `<tr><td>${escapeHtml(name)}</td><td colspan="3" style="color:var(--text-muted);">Not enough data yet</td></tr>`;
       }
+      const avgFires = lb.total_fires / lb.games_played;
       return `
         <tr>
           <td>${escapeHtml(name)}</td>
           <td>O/U ${toHalfLine(lb.avg_cups)} (-110/-110)</td>
           <td>O/U ${toHalfLine(lb.avg_bitch_cups_taken)} (-110/-110)</td>
+          <td>O/U ${toHalfLine(avgFires)} (-110/-110)</td>
         </tr>
       `;
     }).join('');
