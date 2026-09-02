@@ -29,11 +29,13 @@ full game history.
   assuming a full 55-cup rack gets cleared. It's a rough estimate, not a
   guarantee -- someone who's only played 2v2 might play differently once
   there are more people on their side.
-- **Fun Stats**: per-player bitch cups made and bitch cups taken (per
-  game), drinks taken (per game), total times someone caught fire (hit 3
-  in a row after a rerack), and total last cups (see below). These are
-  all optional when logging a game -- leave any of them blank and they
-  default to 0.
+- **Fun Stats**: per-player bitch cups drank (per game), total times
+  someone caught fire (hit 3 in a row after a rerack), and total last
+  cups (see below). Both are optional when logging a game -- leave either
+  blank and it defaults to 0. (Bitch cups made and total drinks used to
+  be tracked too but were dropped to keep logging quick -- any values
+  already recorded for old games are kept, just no longer shown or
+  editable.)
 - **Last Cup**: pick who made the game-ending cup from a dropdown that's
   automatically filled with whoever's currently in the rosters -- no
   typing, no mismatched names. Shows up in that game's history entry and
@@ -52,8 +54,10 @@ full game history.
   each other -- every game where they were on opposite teams, with the
   win/loss tally and a list of those specific games.
 - **Odds**: a just-for-fun tab (not real money) where you pick 2 to 5
-  players for each side and get a moneyline for who's favored, plus
-  over/under prop lines for each player's cups, bitch cups, and drinks,
+  players for each side (even someone who's never logged a game -- add
+  them by name and they'll just get treated as perfectly average until
+  they actually play) and get a moneyline for who's favored, plus
+  over/under prop lines for each player's cups and bitch cups drank,
   all based on their career averages.
 - The page is split into three tabs so it doesn't get too long: **Games**
   (logging, Leaderboard, Fun Stats, History, Team Size Projector),

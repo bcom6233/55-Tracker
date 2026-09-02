@@ -190,10 +190,6 @@
     margin-top: 6px;
   }
 
-  @media (min-width: 480px) {
-    .player-stat-grid { grid-template-columns: repeat(5, 1fr); }
-  }
-
   .player-stat-grid div { display: flex; flex-direction: column; }
 
   .player-stat-grid label {
@@ -505,7 +501,7 @@
     <h2>Fun Stats</h2>
     <table>
       <thead>
-        <tr><th>Player</th><th>Bitch cups/game</th><th>Drinks/game</th><th>Fires (total)</th><th>Last cups (total)</th><th>Best streak</th></tr>
+        <tr><th>Player</th><th>Bitch cups drank/game</th><th>Fires (total)</th><th>Last cups (total)</th><th>Best streak</th></tr>
       </thead>
       <tbody id="funstats-body"></tbody>
     </table>
@@ -634,7 +630,7 @@
     </p>
     <table>
       <thead>
-        <tr><th>Player</th><th>Cups O/U</th><th>Bitch cups O/U</th><th>Drinks O/U</th></tr>
+        <tr><th>Player</th><th>Cups O/U</th><th>Bitch cups drank O/U</th></tr>
       </thead>
       <tbody id="odds-props-body"></tbody>
     </table>
@@ -740,7 +736,7 @@
   }
 
   function blankPlayer() {
-    return { name: '', cups: '', bmade: '', btaken: '', drinks: '', fire: '' };
+    return { name: '', cups: '', btaken: '', fire: '' };
   }
 
   function initTeamRows() {
@@ -770,9 +766,7 @@
       if (!teamRows[team][i]) return;
       teamRows[team][i].name = row.querySelector('.player-name-input').value;
       teamRows[team][i].cups = row.querySelector('.player-cups-input').value;
-      teamRows[team][i].bmade = row.querySelector('.player-bmade-input').value;
       teamRows[team][i].btaken = row.querySelector('.player-btaken-input').value;
-      teamRows[team][i].drinks = row.querySelector('.player-drinks-input').value;
       teamRows[team][i].fire = row.querySelector('.player-fire-input').value;
     });
     refreshLastCupOptions();
@@ -797,19 +791,9 @@
                    placeholder="0" value="${escapeHtml(p.cups)}" onchange="captureTeamRows('${team}')">
           </div>
           <div>
-            <label>Bitch cups made</label>
-            <input type="number" class="player-bmade-input" min="0"
-                   placeholder="0" value="${escapeHtml(p.bmade)}" onchange="captureTeamRows('${team}')">
-          </div>
-          <div>
-            <label>Bitch cups taken</label>
+            <label>Bitch cups drank</label>
             <input type="number" class="player-btaken-input" min="0"
                    placeholder="0" value="${escapeHtml(p.btaken)}" onchange="captureTeamRows('${team}')">
-          </div>
-          <div>
-            <label>Drinks</label>
-            <input type="number" class="player-drinks-input" min="0"
-                   placeholder="0" value="${escapeHtml(p.drinks)}" onchange="captureTeamRows('${team}')">
           </div>
           <div>
             <label>Fires</label>
@@ -866,6 +850,10 @@
 
     const toCount = (v) => (v === '' || v === null || v === undefined) ? 0 : Number(v);
 
+    // bmade/drinks are no longer shown or collected in the form, but if
+    // this is an edit of an old game that already had values for them,
+    // toRow() (below) carries those forward here unchanged so saving an
+    // unrelated edit doesn't quietly wipe out that old history to 0.
     const buildRoster = (rows) => rows.map(p => ({
       player_name: p.name.trim(),
       cups_made: p.cups === '' ? NaN : Number(p.cups),
@@ -884,7 +872,7 @@
         showError(`${p.player_name}'s cups made needs to be a number between 0 and ${MAX_CUPS}.`);
         return;
       }
-      for (const [field, label] of [['bitch_cups_made', 'bitch cups made'], ['bitch_cups_taken', 'bitch cups taken'], ['drinks_taken', 'drinks'], ['fire_count', 'fire count']]) {
+      for (const [field, label] of [['bitch_cups_taken', 'bitch cups drank'], ['fire_count', 'fire count']]) {
         if (Number.isNaN(p[field]) || p[field] < 0) {
           showError(`${p.player_name}'s ${label} needs to be a number 0 or higher.`);
           return;
@@ -1033,8 +1021,7 @@
       funBody.innerHTML = funRows.map(p => `
         <tr>
           <td>${escapeHtml(p.player_name)}</td>
-          <td>${p.avg_bitch_cups_made} made / ${p.avg_bitch_cups_taken} taken</td>
-          <td>${p.avg_drinks}</td>
+          <td>${p.avg_bitch_cups_taken}</td>
           <td>${p.total_fires}</td>
           <td>${p.total_last_cups}</td>
           <td>${p.longest_streak}</td>
@@ -1096,9 +1083,7 @@
 
   function extraStatsLine(p) {
     const bits = [];
-    if (p.bitch_cups_made) bits.push(`${p.bitch_cups_made} bitch cups made`);
-    if (p.bitch_cups_taken) bits.push(`${p.bitch_cups_taken} bitch cups taken`);
-    if (p.drinks_taken) bits.push(`${p.drinks_taken} drinks`);
+    if (p.bitch_cups_taken) bits.push(`${p.bitch_cups_taken} bitch cups drank`);
     if (p.fire_count) bits.push(`&#128293;&times;${p.fire_count}`);
     if (bits.length === 0) return '';
     return `<div style="font-size:11px;color:var(--text-muted);padding-left:2px;margin-top:-2px;">${bits.join(' &middot; ')}</div>`;
@@ -1397,14 +1382,13 @@
     document.getElementById('odds-props-body').innerHTML = [...teamA, ...teamB].map(name => {
       const lb = lastLeaderboard.find(p => p.player_name === name);
       if (!lb || !lb.games_played) {
-        return `<tr><td>${escapeHtml(name)}</td><td colspan="3" style="color:var(--text-muted);">Not enough data yet</td></tr>`;
+        return `<tr><td>${escapeHtml(name)}</td><td colspan="2" style="color:var(--text-muted);">Not enough data yet</td></tr>`;
       }
       return `
         <tr>
           <td>${escapeHtml(name)}</td>
           <td>O/U ${toHalfLine(lb.avg_cups)} (-110/-110)</td>
-          <td>O/U ${toHalfLine(lb.avg_bitch_cups_made)} (-110/-110)</td>
-          <td>O/U ${toHalfLine(lb.avg_drinks)} (-110/-110)</td>
+          <td>O/U ${toHalfLine(lb.avg_bitch_cups_taken)} (-110/-110)</td>
         </tr>
       `;
     }).join('');
