@@ -53,15 +53,25 @@ full game history.
 - **Head-to-Head**: pick any two players and see their record against
   each other -- every game where they were on opposite teams, with the
   win/loss tally and a list of those specific games.
+- **Nemesis**: for every player, whoever they've lost to the most while on
+  opposite teams -- the flip side of Head-to-Head, computed for everyone
+  at once instead of one chosen pair.
+- **Hall of Fame**: a highlight reel pulling together MVP appearances
+  (most total games as MVP), Fire Starter (most total fires), Iron Liver
+  (most total bitch cups drank), Hot Streak (longest current win streak),
+  Best Duo, and Personal Best (highest single-game cups made ever, and
+  who/when). Ties show every name tied for the record.
 - **Odds**: a just-for-fun tab (not real money) where you pick 2 to 5
   players for each side (even someone who's never logged a game -- add
   them by name and they'll just get treated as perfectly average until
   they actually play) and get a moneyline for who's favored, plus
-  over/under prop lines for each player's cups and bitch cups drank,
-  all based on their career averages.
-- The page is split into three tabs so it doesn't get too long: **Games**
-  (logging, Leaderboard, Fun Stats, History, Team Size Projector),
-  **Matchups** (Best Duos, Head-to-Head), and **Odds**.
+  over/under prop lines for each player's cups, bitch cups drank, and
+  fires, all based on their career averages.
+- The page is split into six tabs so it doesn't turn into one long
+  scroll: **Log** (who's logging + the log-a-game form), **Stats**
+  (Leaderboard, Fun Stats, Team Size Projector), **History**, **Matchups**
+  (Best Duos, Head-to-Head, Nemesis), **Awards** (Hall of Fame), and
+  **Odds**.
 
 ## Running it locally
 
