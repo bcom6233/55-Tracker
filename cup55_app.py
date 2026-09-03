@@ -40,6 +40,10 @@ MAX_BITCH_CUPS = 55
 MAX_DRINKS = 200
 MAX_FIRE_COUNT = 55
 MAX_BITCH_CUPS_TAKEN = 55
+# The team size the Leaderboard's "adjusted" average cups gets projected
+# onto -- see the comment above adj_avg_cups in api_stats() for why this
+# exists at all.
+REFERENCE_TEAM_SIZE = 4
 
 # Optional shared-passcode gate. If SITE_PASSCODE isn't set, the app is
 # wide open to anyone with the link (the old behavior) -- no code changes
@@ -235,6 +239,11 @@ def api_stats():
                 won = None
             else:
                 won = (g["winner"] == team)
+            # Team totals, computed once per roster, used below to give each
+            # player a team-size-independent "skill factor" for that game --
+            # see the comment above adj_avg_cups for why this matters.
+            team_total = sum(p["cups_made"] for p in roster)
+            team_size = len(roster)
             for p in roster:
                 name = p["player_name"]
                 stats = by_player.setdefault(name, {
@@ -249,6 +258,8 @@ def api_stats():
                     "wins": 0,
                     "losses": 0,
                     "unrecorded_results": 0,
+                    "skill_total": 0.0,
+                    "skill_games": 0,
                 })
                 stats["games_played"] += 1
                 stats["total_cups"] += p["cups_made"]
@@ -270,6 +281,11 @@ def api_stats():
                     player_history.setdefault(name, []).append(
                         (g["game_date"], g["created_at"], won)
                     )
+
+                if team_total > 0 and team_size > 0:
+                    share = p["cups_made"] / team_total
+                    stats["skill_total"] += share * team_size
+                    stats["skill_games"] += 1
 
             # Best Duos: every pair of players who shared this roster (works for
             # 2v2 through 5v5 -- a 3-person team credits all 3 pairs within it).
@@ -298,6 +314,21 @@ def api_stats():
         decided = stats["wins"] + stats["losses"]
         win_rate = round(stats["wins"] / decided * 100, 1) if decided else None
 
+        # A raw "cups per game" average unfairly rewards people who mostly
+        # play smaller teams -- in a 2v2 each player is on the hook for
+        # roughly half the rack, in a 5v5 only a fifth, so someone who
+        # farms 2v2s looks better than an equally-skilled player who mostly
+        # plays 5v5. Fix: for each game, take the player's share of their
+        # own team's total cups that game, multiply by their team size that
+        # game (this "un-does" the team-size effect -- an even split always
+        # scores exactly 1.0 regardless of team size), average that across
+        # every game they've played, then project the result onto a fixed
+        # reference team size so it still reads as a normal cups number.
+        adj_avg_cups = (
+            round((stats["skill_total"] / stats["skill_games"] / REFERENCE_TEAM_SIZE) * MAX_CUPS, 2)
+            if stats["skill_games"] else 0
+        )
+
         # Win streaks: only decided (winner recorded) games count, in
         # chronological order. Current streak = consecutive wins ending on
         # the player's most recent decided game. Longest streak = the best
@@ -320,6 +351,7 @@ def api_stats():
         leaderboard.append({
             **stats,
             "avg_cups": avg_cups,
+            "adj_avg_cups": adj_avg_cups,
             "avg_bitch_cups_made": avg_bitch_cups_made,
             "avg_bitch_cups_taken": avg_bitch_cups_taken,
             "avg_drinks": avg_drinks,
@@ -328,7 +360,9 @@ def api_stats():
             "longest_streak": longest_streak,
         })
 
-    leaderboard.sort(key=lambda s: (-s["avg_cups"], -s["games_played"]))
+    # Ranked by the team-size-adjusted number so the leaderboard itself is
+    # fair, not just the number displayed.
+    leaderboard.sort(key=lambda s: (-s["adj_avg_cups"], -s["games_played"]))
 
     duos = []
     for duo in duo_stats.values():

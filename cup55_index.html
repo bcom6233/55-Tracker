@@ -527,6 +527,11 @@
 
   <div class="card">
     <h2>Leaderboard</h2>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:0;">
+      "Avg cups" is adjusted for team size, so someone who mostly plays
+      2v2 (each player is on the hook for more of the rack) doesn't rank
+      ahead of an equally-good player who mostly plays 5v5.
+    </p>
     <table>
       <thead>
         <tr><th>Player</th><th>Avg cups</th><th>Games</th><th>Win %</th><th>Streak</th></tr>
@@ -1074,7 +1079,7 @@
       body.innerHTML = rows.map(p => `
         <tr>
           <td>${escapeHtml(p.player_name)}</td>
-          <td>${p.avg_cups}</td>
+          <td>${p.adj_avg_cups}</td>
           <td>${p.games_played}</td>
           <td>${p.win_rate === null ? '--' : p.win_rate + '%'}</td>
           <td>${p.current_streak > 0 ? '&#128293;' + p.current_streak : '-'}</td>

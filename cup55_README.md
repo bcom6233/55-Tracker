@@ -12,8 +12,14 @@ full game history.
 - **Log a whole game**: pick a date, optionally name the session (e.g.
   "Friday night at the house"), name both teams, add 2 to 5 players per
   side with each person's cups made, and mark who won.
-- **Leaderboard**: every player ranked by average cups made per game,
-  with total games played and win rate.
+- **Leaderboard**: every player ranked by average cups per game, total
+  games played, and win rate. The average is adjusted for team size --
+  each player's share of their own team's total cups that game gets
+  normalized by how many teammates they had (so an even split always
+  counts the same whether it's 2v2 or 5v5), then projected onto a
+  standard team size. Otherwise someone who mostly plays 2v2 (on the hook
+  for a bigger slice of the rack) would look better than an equally good
+  player who mostly plays 5v5, just because of team size.
 - **History**: every logged game, newest first, showing both rosters
   side by side with the winning team highlighted. Whoever logged a game
   can edit or delete it (e.g. to fix a mistake, add someone who was left
