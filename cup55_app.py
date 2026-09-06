@@ -44,6 +44,15 @@ MAX_BITCH_CUPS_TAKEN = 55
 # onto -- see the comment above adj_avg_cups in api_stats() for why this
 # exists at all.
 REFERENCE_TEAM_SIZE = 4
+# How many "phantom games at the group average" a brand new player starts
+# with when computing rated_avg_cups -- higher means someone needs more
+# real games before their own average is trusted. See the comment above
+# rated_avg_cups in api_stats().
+CONFIDENCE_GAMES = 3
+# Below this many games, a player's cups average is still computed and
+# shown, but flagged as "not enough games yet" instead of being ranked
+# alongside players with a real track record.
+MIN_GAMES_FOR_LEADERBOARD = 2
 
 # Optional shared-passcode gate. If SITE_PASSCODE isn't set, the app is
 # wide open to anyone with the link (the old behavior) -- no code changes
@@ -360,9 +369,29 @@ def api_stats():
             "longest_streak": longest_streak,
         })
 
-    # Ranked by the team-size-adjusted number so the leaderboard itself is
-    # fair, not just the number displayed.
-    leaderboard.sort(key=lambda s: (-s["adj_avg_cups"], -s["games_played"]))
+    # A team-size-adjusted average still has a "small sample size" problem:
+    # someone who's only played once or twice and happened to play well can
+    # tie or beat someone with a much bigger, more reliable track record.
+    # Fix: blend each player's adj_avg_cups toward the group's overall
+    # average, weighted by how many games they've played. A brand new
+    # player starts out mostly reflecting the group average (CONFIDENCE_GAMES
+    # acts like "phantom games" at that average); the more real games they
+    # log, the more their own number counts, until it's almost entirely
+    # their own by the time they've played several. On top of that, anyone
+    # under MIN_GAMES_FOR_LEADERBOARD games gets flagged unqualified so the
+    # frontend can show them separately as still building a record instead
+    # of ranking them among established players at all.
+    group_avg_cups = (
+        sum(p["adj_avg_cups"] for p in leaderboard) / len(leaderboard)
+        if leaderboard else 0
+    )
+    for p in leaderboard:
+        n = p["games_played"]
+        weight = n / (n + CONFIDENCE_GAMES)
+        p["rated_avg_cups"] = round(weight * p["adj_avg_cups"] + (1 - weight) * group_avg_cups, 2)
+        p["qualified"] = n >= MIN_GAMES_FOR_LEADERBOARD
+
+    leaderboard.sort(key=lambda s: (-s["rated_avg_cups"], -s["games_played"]))
 
     duos = []
     for duo in duo_stats.values():
