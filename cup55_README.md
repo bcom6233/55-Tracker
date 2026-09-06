@@ -13,18 +13,16 @@ full game history.
   "Friday night at the house"), name both teams, add 2 to 5 players per
   side with each person's cups made, and mark who won.
 - **Leaderboard**: every player ranked by average cups per game, total
-  games played, and win rate. The average is adjusted two ways so it
-  can't be gamed or skewed by luck: (1) team size -- each player's share
-  of their own team's total cups that game gets normalized by how many
-  teammates they had (so an even split counts the same in 2v2 or 5v5),
-  then projected onto a standard team size, since otherwise someone who
-  mostly plays 2v2 (on the hook for a bigger slice of the rack) would
-  look better than an equally good player who mostly plays 5v5; and (2)
-  sample size -- a player's average gets blended toward the group's
-  overall average, weighted by how many games they've logged, so one
-  lucky game can't outrank someone with a long, proven track record. A
-  player needs at least 2 games logged before they're ranked at all;
-  below that they show up separately as still building a record.
+  games played, and win rate. The average is adjusted for team size --
+  each player's share of their own team's total cups that game gets
+  normalized by how many teammates they had (so an even split counts the
+  same in 2v2 or 5v5), then projected onto a standard team size, since
+  otherwise someone who mostly plays 2v2 (on the hook for a bigger slice
+  of the rack) would look better than an equally good player who mostly
+  plays 5v5. To keep one lucky game from outranking a long, proven track
+  record, a player also needs at least 2 games logged before they're
+  ranked at all; below that they show up separately as still building a
+  record, with their real (unaltered) average shown once they qualify.
 - **History**: every logged game, newest first, showing both rosters
   side by side with the winning team highlighted. Whoever logged a game
   can edit or delete it (e.g. to fix a mistake, add someone who was left

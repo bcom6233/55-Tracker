@@ -528,10 +528,9 @@
   <div class="card">
     <h2>Leaderboard</h2>
     <p style="font-size:12px;color:var(--text-muted);margin-top:0;">
-      "Avg cups" is adjusted for team size (2v2 vs 5v5 doesn't skew it) and
-      blended toward the group average for players with fewer games, so
-      one lucky game can't outrank a proven track record. Needs at least
-      2 games logged to be ranked.
+      "Avg cups" is adjusted for team size (2v2 vs 5v5 doesn't skew it).
+      Needs at least 2 games logged to be ranked, so one lucky game can't
+      outrank a proven track record.
     </p>
     <table>
       <thead>
@@ -1086,7 +1085,7 @@
       body.innerHTML = qualified.map(p => `
         <tr>
           <td>${escapeHtml(p.player_name)}</td>
-          <td>${p.rated_avg_cups}</td>
+          <td>${p.adj_avg_cups}</td>
           <td>${p.games_played}</td>
           <td>${p.win_rate === null ? '--' : p.win_rate + '%'}</td>
           <td>${p.current_streak > 0 ? '&#128293;' + p.current_streak : '-'}</td>
