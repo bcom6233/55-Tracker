@@ -19,10 +19,11 @@ full game history.
   same in 2v2 or 5v5), then projected onto a standard team size, since
   otherwise someone who mostly plays 2v2 (on the hook for a bigger slice
   of the rack) would look better than an equally good player who mostly
-  plays 5v5. To keep one lucky game from outranking a long, proven track
-  record, a player also needs at least 2 games logged before they're
-  ranked at all; below that they show up separately as still building a
-  record, with their real (unaltered) average shown once they qualify.
+  plays 5v5. To keep one or two lucky games from outranking a long,
+  proven track record, a player also needs at least 3 games logged before
+  they count toward the ranking; below that they're still listed, at the
+  bottom of the table, tagged "(unranked)" -- their real (unaltered)
+  average moves up into the ranked group once they clear the bar.
 - **History**: every logged game, newest first, showing both rosters
   side by side with the winning team highlighted. Whoever logged a game
   can edit or delete it (e.g. to fix a mistake, add someone who was left

@@ -49,7 +49,7 @@ REFERENCE_TEAM_SIZE = 4
 # alongside players with a real track record. This is the only fix for
 # small-sample-size luck -- a player's own adj_avg_cups is never altered,
 # they're just excluded from the ranked table until they clear this bar.
-MIN_GAMES_FOR_LEADERBOARD = 2
+MIN_GAMES_FOR_LEADERBOARD = 3
 
 # Optional shared-passcode gate. If SITE_PASSCODE isn't set, the app is
 # wide open to anyone with the link (the old behavior) -- no code changes

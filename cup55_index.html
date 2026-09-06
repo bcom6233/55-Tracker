@@ -529,8 +529,9 @@
     <h2>Leaderboard</h2>
     <p style="font-size:12px;color:var(--text-muted);margin-top:0;">
       "Avg cups" is adjusted for team size (2v2 vs 5v5 doesn't skew it).
-      Needs at least 2 games logged to be ranked, so one lucky game can't
-      outrank a proven track record.
+      Needs at least 3 games logged to count toward the ranking -- players
+      below that are listed at the bottom, marked unranked, so one or two
+      lucky games can't outrank a proven track record.
     </p>
     <table>
       <thead>
@@ -539,7 +540,6 @@
       <tbody id="leaderboard-body"></tbody>
     </table>
     <div class="empty-note" id="leaderboard-empty" style="display:none;">No games logged yet.</div>
-    <div id="leaderboard-provisional" style="margin-top:10px;"></div>
   </div>
 
   <div class="card">
@@ -1070,35 +1070,33 @@
     const rows = data.leaderboard || [];
     lastLeaderboard = rows;
 
-    // qualified/provisional split only affects the Leaderboard table itself
-    // (Fun Stats etc. below still use the full, unfiltered `rows`).
+    // qualified players are shown first, sorted by adj_avg_cups (already the
+    // order they come back from the server); unranked players (below
+    // MIN_GAMES_FOR_LEADERBOARD) are appended after them in the same table,
+    // marked with an "(unranked)" tag, instead of being ranked among an
+    // established track record or split out into separate text.
     const qualified = rows.filter(p => p.qualified);
-    const provisional = rows.filter(p => !p.qualified);
+    const unranked = rows.filter(p => !p.qualified);
 
     const body = document.getElementById('leaderboard-body');
     const empty = document.getElementById('leaderboard-empty');
-    if (qualified.length === 0) {
+    if (rows.length === 0) {
       body.innerHTML = '';
       empty.style.display = 'block';
     } else {
       empty.style.display = 'none';
-      body.innerHTML = qualified.map(p => `
-        <tr>
-          <td>${escapeHtml(p.player_name)}</td>
+      const rowHtml = (p, isUnranked) => `
+        <tr${isUnranked ? ' style="opacity:0.6;"' : ''}>
+          <td>${escapeHtml(p.player_name)}${isUnranked ? ' <span style="color:var(--text-muted);font-size:11px;">(unranked)</span>' : ''}</td>
           <td>${p.adj_avg_cups}</td>
           <td>${p.games_played}</td>
           <td>${p.win_rate === null ? '--' : p.win_rate + '%'}</td>
           <td>${p.current_streak > 0 ? '&#128293;' + p.current_streak : '-'}</td>
         </tr>
-      `).join('');
+      `;
+      body.innerHTML = qualified.map(p => rowHtml(p, false)).join('')
+        + unranked.map(p => rowHtml(p, true)).join('');
     }
-
-    const provisionalEl = document.getElementById('leaderboard-provisional');
-    provisionalEl.innerHTML = provisional.length === 0 ? '' : `
-      <div style="font-size:12px;color:var(--text-muted);">
-        Still building a record (fewer than 2 games): ${provisional.map(p => escapeHtml(p.player_name) + ` (${p.games_played})`).join(', ')}
-      </div>
-    `;
 
     const funBody = document.getElementById('funstats-body');
     const funEmpty = document.getElementById('funstats-empty');
