@@ -1142,14 +1142,31 @@
     `).join('');
   }
 
-  // MVP: whoever made the most cups in a game, across both teams combined.
-  // Ties (including a 0-0 game where nobody scored) get no badge, or all
-  // get one if they're tied at the actual top score.
+  // MVP: only someone on the WINNING team can be MVP (no winner recorded
+  // yet -> no MVP). Among the winning roster, highest cups made wins; ties
+  // break in order: (1) whoever hit the game's last cup, (2) most fires,
+  // (3) most bitch cups drank. If everything's still tied after all three,
+  // everyone left standing shares the badge.
   function computeMvp(game) {
-    const all = [...game.team_a_players, ...game.team_b_players];
-    const max = all.reduce((m, p) => Math.max(m, p.cups_made), 0);
-    if (max <= 0) return [];
-    return all.filter(p => p.cups_made === max).map(p => p.player_name);
+    if (!game.winner) return [];
+    const roster = game.winner === 'A' ? game.team_a_players : game.team_b_players;
+    if (!roster || roster.length === 0) return [];
+
+    const maxCups = roster.reduce((m, p) => Math.max(m, p.cups_made), 0);
+    if (maxCups <= 0) return [];
+    let tied = roster.filter(p => p.cups_made === maxCups);
+    if (tied.length === 1) return tied.map(p => p.player_name);
+
+    const lastCup = tied.filter(p => p.player_name === game.last_cup_player);
+    if (lastCup.length === 1) return lastCup.map(p => p.player_name);
+
+    const maxFire = tied.reduce((m, p) => Math.max(m, p.fire_count || 0), 0);
+    tied = tied.filter(p => (p.fire_count || 0) === maxFire);
+    if (tied.length === 1) return tied.map(p => p.player_name);
+
+    const maxBitch = tied.reduce((m, p) => Math.max(m, p.bitch_cups_taken || 0), 0);
+    tied = tied.filter(p => (p.bitch_cups_taken || 0) === maxBitch);
+    return tied.map(p => p.player_name);
   }
 
   function teamHtml(game, side, mvpNames) {

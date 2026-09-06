@@ -50,9 +50,11 @@ full game history.
   automatically filled with whoever's currently in the rosters -- no
   typing, no mismatched names. Shows up in that game's history entry and
   counts toward a player's total on the Fun Stats table.
-- **MVP badge**: whoever made the most cups in a game (across both teams)
-  gets a star next to their name in that game's history entry. Ties get a
-  star each.
+- **MVP badge**: only someone on the *winning* team can be MVP -- no
+  winner recorded yet means no MVP for that game. Whoever on the winning
+  roster made the most cups gets the star; ties break by whoever hit the
+  last cup, then by most fires, then by most bitch cups drank. If it's
+  still tied after all of that, everyone left standing gets a star.
 - **Win streaks**: the Leaderboard shows each player's current win
   streak, and Fun Stats shows their longest streak ever -- both only
   count games with a recorded winner.
